@@ -29,6 +29,7 @@ class Flow(models.Model):
     
     fwdFlags = models.CharField(max_length=25)
     bwdFlags = models.CharField(max_length=25)
+    authFailures = models.CharField(max_length=5)
     
     fwdTimeDelta = models.CharField(max_length=15)
     bwdTimeDelta = models.CharField(max_length=15)
@@ -66,6 +67,7 @@ class Flow(models.Model):
     fwdPayloadVariance = models.CharField(max_length=25)
     bwdPayloadVariance = models.CharField(max_length=25)
     
+    
     fwdPacketCount = models.CharField(max_length=50)
     bwdPacketCount = models.CharField(max_length=50)
     packetCount = models.CharField(max_length=50)
@@ -74,6 +76,8 @@ class Flow(models.Model):
     
     fwdFlowDuration = models.CharField(max_length=50)
     bwdFlowDuration = models.CharField(max_length=50)
+    
+    fwdUniquePorts = models.CharField(max_length=10)
     
     fwdMeanByteSize = models.CharField(max_length=50)
     bwdMeanByteSize = models.CharField(max_length=50)

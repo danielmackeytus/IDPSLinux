@@ -70,18 +70,20 @@ def MachineLearningTraining(Layers):
     model = Sequential()
     
     activationLayer = Layers[0]['activation']
-    print(activationLayer)
+
     nodes = Layers[0]['nodes']
-    	
+    print('nodes',nodes)
+    print('activationLayer',activationLayer)
     model.add(Dense(nodes, activation=activationLayer, input_shape=(len(X.columns),)))
     
     for x in range(1,len(Layers)):
     	activationLayer = Layers[x]['activation']
     	nodes = Layers[x]['nodes']
-    
+    	print('nodes',nodes)
+    	print('activationLayer',activationLayer)
     	model.add(Dense(nodes, activation=activationLayer))
     
-    model.add(Dense(7, activation='softmax'))
+    model.add(Dense(5, activation='softmax'))
     
     print('Compiling model.')
     model.compile(loss='sparse_categorical_crossentropy', optimizer='adam', metrics='accuracy')
@@ -90,7 +92,7 @@ def MachineLearningTraining(Layers):
     early_stopping = EarlyStopping(monitor='val_loss', min_delta=0, patience=10, verbose=1, mode='auto')
     model_checkpoint = ModelCheckpoint(filepath='model.tf', monitor='val_loss', mode='min', save_best_only=True, verbose=1)
     print('Fitting x and y to model for training.')
-    history = model.fit(x_train, y_train, epochs=80, batch_size=32, validation_data=(x_val, y_val), callbacks=[early_stopping, model_checkpoint])
+    history = model.fit(x_train, y_train, epochs=100, batch_size=128, validation_data=(x_val, y_val), callbacks=[early_stopping, model_checkpoint])
     
     print('Prediction vs actual.')
     y_test_pred = model.predict(x_test)

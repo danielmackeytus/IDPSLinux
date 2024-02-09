@@ -33,7 +33,7 @@ def MachineLearningTesting(flowDataFrame):
         x = pd.get_dummies(flowDataFrame.drop(['flowID','Label','srcIP'],axis=1))
         x = x.reindex(columns=columns, fill_value=0)
     except(KeyError):
-        print("Key error")
+        print("No flows detected.")
     except (ValueError):
         print("Scan more")
 
@@ -47,8 +47,7 @@ def MachineLearningTesting(flowDataFrame):
 
     predict = label_encoder.inverse_transform(pred_class)
     flowDataFrame["Label"] = predict
-
-    print(flowDataFrame)
+    
     values, counts = np.unique(predict, return_counts=True)
     
     unique = np.count_nonzero(values)
@@ -56,10 +55,11 @@ def MachineLearningTesting(flowDataFrame):
        
     mostFrequentIndex = np.argmax(counts)
     conclusion = values[mostFrequentIndex]
-    count = np.count_nonzero(predict == "Portscan")
     
-    if count >= 5:
-        conclusion = "Portscan"
+    #count = np.count_nonzero(predict == "SSH Brute Force")
+    
+    #if count >= 3:
+        #conclusion = "SSH Brute Force"
         
     print('unique',unique)
     if (unique >= 4 ):
@@ -68,7 +68,7 @@ def MachineLearningTesting(flowDataFrame):
     print("prediction:", predict)
     print("Traffic type:", conclusion)
     flowDataFrame = flowDataFrame.reset_index()
-
+    print(flowDataFrame[['flowID', 'Auth Failures','Unique Ports']])
     for index, row in flowDataFrame.iterrows():
         try:
             flowRow = Flow.objects.get(flowID=row['flowID'])
@@ -80,7 +80,6 @@ def MachineLearningTesting(flowDataFrame):
                flowRow.delete()
                
             else:
-               print("CONDITION PASSED")
                flowRow.Label = conclusion
                flowRow.save()
          
@@ -89,7 +88,7 @@ def MachineLearningTesting(flowDataFrame):
 
 
     response = requests.post(
-        "http://0.0.0.0:8000/api/TrafficStatus/", data={"status": conclusion}
+        "https://danielmackey.ie/api/TrafficStatus/", data={"status": conclusion}
     )
     return response
 

@@ -11,10 +11,14 @@ from IDPBackend.models import Flow
 from django.db import IntegrityError
 import numpy as np
 from IDPBackend.models import Status
+from IDPBackend.models import TrafficStatus
 from IDPBackend.MachineLearningTesting import MachineLearningTesting
 from asgiref.sync import sync_to_async
+import subprocess
 
-def FlowExtractor(interface, capture_duration, IP):
+
+    
+def FlowExtractor(interface, capture, captureDuration, IP):
     
     flows = {}
     streams = {}
@@ -24,28 +28,14 @@ def FlowExtractor(interface, capture_duration, IP):
     fwdPayloadSizes = {}
     bwdPayloadSizes = {}
     
+    fwdUniquePorts = {}
+    
     fwdDelta = {}
     bwdDelta = {}
-    start_time = time.time()
-
+    startTime = time.time()
+    logFilePath = '/var/log/auth.log'
     fwdIFT = {}
     bwdIFT = {}
-    
-    XRDP_CIDR = "78.17.169.0/24"
-    DHCP = "255.255.255.255"
-    if IP:
-       filter = f"(src host {IP} or dst host {IP})"
-       capture = pyshark.LiveCapture(interface='eth0',bpf_filter=filter)
-    else:
-       filter = f"(not net {XRDP_CIDR} and not dst host {DHCP})"
-       capture = pyshark.LiveCapture(interface='eth0',bpf_filter=filter)
-    
-    #column_names = ['dstPort','flag','protocol',
-    #'fwd packetCount','bwd packetCount','packetCount',
-    #'fwd byteCount','bwd byteCount','fwd flowDuration',
-    #'bwd flowDuration','fwd meanByteSize','fwd stDevByteSize',
-    #'fwd varianceByteSize','bwd meanByteSize','bwd stDevByteSize',
-    #'bwd varianceByteSize','rtt']
     
     try:
         Status.objects.create(status='Sniffer On')
@@ -53,7 +43,8 @@ def FlowExtractor(interface, capture_duration, IP):
             #print(packet)
             currentTime = time.time()
             
-            if currentTime - start_time >= capture_duration:
+            
+            if currentTime - startTime >= captureDuration:
                 break
                 
             flag = ''
@@ -62,22 +53,43 @@ def FlowExtractor(interface, capture_duration, IP):
             timeDelta = 0
             
             if 'ip' in packet and packet is not None:
-            
+                outgoing = (packet.ip.src == "149.102.157.168")
+                  
                 protocol = packet.transport_layer
                 if protocol:
                     try:
-                        srcPort = packet[protocol].srcport
-                        dstPort = packet[protocol].dstport
-                        srcIP = packet.ip.src
-                        dstIP = packet.ip.dst
+                        
+                           srcPort = packet[protocol].srcport
+                           dstPort = packet[protocol].dstport
+                           
+                           srcIP = packet.ip.src
+                           dstIP = packet.ip.dst
 
                     except AttributeError:
                         continue
                 else:
                     continue;
-                   
-                elapsedTime = 0
                 
+                if outgoing:
+                   #My IP address is prioritized as the source, if i am sending.
+                   #The receiver is prioritized as the destination.
+                   flowID = "{} {} {} {} {}".format(srcIP, srcPort, dstIP, dstPort, protocol)
+                   backward = "{} {} {} {} {}".format(dstIP, dstPort, srcIP, srcPort, protocol)
+                else:
+                
+                   #My IP address is prioritized as the destination, if i am receiving
+                   #The sender is prioritized as the source
+                   flowID = "{} {} {} {} {}".format(dstIP, dstPort, srcIP, srcPort, protocol)
+                   backward = "{} {} {} {} {}".format(srcIP, srcPort, dstIP, dstPort, protocol)
+        
+                key = srcIP+dstIP
+                fwdUniquePorts.setdefault(key, [])
+                
+                if dstPort not in fwdUniquePorts.get(key,[]):
+                   fwdUniquePorts[key].append(dstPort)   
+                
+                elapsedTime = 0
+
                 flowID = "{} {} {} {} {}".format(srcIP, srcPort, dstIP, dstPort, protocol)
                 backward = ("{} {} {} {} {}".format(dstIP, dstPort, srcIP, srcPort, protocol))
                 
@@ -89,6 +101,7 @@ def FlowExtractor(interface, capture_duration, IP):
                 
                 fwdPayloadSizes.setdefault(flowID, [])
                 bwdPayloadSizes.setdefault(backward, [])
+               
                 
                 if flowID not in flows and backward not in flows:
                     flows[flowID] = {
@@ -96,6 +109,9 @@ def FlowExtractor(interface, capture_duration, IP):
                     	'flowID':flowID,
                     	'srcIP': srcIP,
                         'dstPort': dstPort,
+                        'Unique Ports': len(fwdUniquePorts[key]),
+                        'Auth Failures': 0,
+                        
                         'fwd flags': 0.0,
                         'bwd flags': 0.0,
                         'fwd time delta': 0.0,
@@ -137,7 +153,8 @@ def FlowExtractor(interface, capture_duration, IP):
                         'bwd varianceByteSize': 0.0,
                         'rtt': 0.0,
                         'SYN-Flag count':0.0,
-
+				
+			
                         'ACK-Flag count':0.0,
                         'RST-Flag count':0.0,
                         'PSH-Flag count':0.0,
@@ -149,12 +166,11 @@ def FlowExtractor(interface, capture_duration, IP):
                         
                     
                     }
-                
+                  
                    
                 if 'TCP' in packet:
-
                     tcpPacket = packet.tcp
-
+                    		
                     window = tcpPacket.window_size
                     timeDelta = tcpPacket.time_delta
                     
@@ -206,7 +222,16 @@ def FlowExtractor(interface, capture_duration, IP):
                     flows[flowID]['fwd time delta'] = float(timeDelta)
                     
                     fwdDelta[flowID].append(float(timeDelta))
-                
+                    
+                    flows[flowID]['Unique Ports'] = len(fwdUniquePorts[key])
+                    
+                    if not outgoing and os.path.getsize(logFilePath) != 0:
+                               #print("auth.log exists.")
+    
+                               result = subprocess.run(["grep", "-c", "Failed password", logFilePath],           capture_output=True, text=True)
+                               count = int(result.stdout.strip())
+                               #print(f"Authentication failure count: {count}")
+                               flows[flowID]['Auth Failures'] =count
                     if 'UDP' not in packet:
                     
                         flows[flowID]['fwd flags'] = flag
@@ -214,8 +239,6 @@ def FlowExtractor(interface, capture_duration, IP):
                         fwdPayloadSizes[flowID].append(payloadSize)
                         flows[flowID]['fwd window size'] = window
                     	
-                    	
-                    
                         if streams[tcpStream]['SYN'] == True and streams[tcpStream]['SYN-ACK'] == True and streams[tcpStream]['RTT-CHECK'] == False:
                             RTT = streams[tcpStream]['syn-ackTime'] - streams[tcpStream]['synTime']
                             flows[flowID]['rtt'] = RTT
@@ -241,11 +264,13 @@ def FlowExtractor(interface, capture_duration, IP):
                        fwdByteCountList[flowID].append(int(packet.length))
                        flows[flowID]['Fwd Packet Bytes/s'] = totalFwdByteCount / totalFwdDuration                
                        
-                    
-                    flows[flowID]['fwd meanByteSize'] = flows[flowID]['total fwd byteCount'] / flows[flowID]['fwd packetCount']
 
                     if (flows[flowID]['fwd flowDuration'] != 0):
+                        flows[flowID]['fwd meanByteSize'] = flows[flowID]['total fwd byteCount'] / flows[flowID][
+                        'fwd packetCount']
                         flows[flowID]['fwd Packet Flow Rate/s'] = flows[flowID]['fwd packetCount'] / flows[flowID]['fwd flowDuration']
+                    
+                    
                     
                     if (len(fwdByteCountList[flowID]) >= 2):
                         flows[flowID]['fwd stDevByteSize'] = statistics.stdev(fwdByteCountList[flowID])
@@ -259,6 +284,8 @@ def FlowExtractor(interface, capture_duration, IP):
                         flows[flowID]['fwd meanDelta'] = statistics.mean(fwdDelta[flowID])
                         
                     elif 'UDP' in packet:
+                       flows[flowID]['Unique Ports'] = len(fwdUniquePorts[key])
+                       
                        UDPHeaderLength = 8
                        UDPPayloadSize = int(packet.udp.length) - UDPHeaderLength
                        flows[flowID]['fwd payload size'] += UDPPayloadSize
@@ -323,29 +350,36 @@ def FlowExtractor(interface, capture_duration, IP):
                         flows[backward]['bwd varianceDelta'] = statistics.variance(bwdDelta[backward])
                         flows[backward]['bwd meanDelta'] = statistics.mean(bwdDelta[backward])
                         
-                         
-        flowDataFrame = pd.DataFrame.from_dict(flows, orient='index')
+        EventLoop = EventLoops.get('sniffer')
+        if (EventLoop !='off'):
+           capture.close()  
+           subprocess.run(["pkill", "-f", "dumpcap -n -i - -Z none"], check=False)
+           if os.path.getsize(logFilePath) != 0:
+              subprocess.run(["sudo", "truncate", "-s", "0", logFilePath])
+              #print('file removed')
+                     
+           flowDataFrame = pd.DataFrame.from_dict(flows, orient='index')
         
-        fileExists = os.path.exists('FlowData.csv')
+           fileExists = os.path.exists('FlowData.csv')
         
-        flowDataFrame.to_csv('FlowData.csv', mode='a', header=not fileExists, index=False)
+           flowDataFrame.to_csv('FlowData.csv', mode='a', header=not fileExists, index=False)
         
-        FlowUpdater(flowDataFrame, interface, capture_duration, IP)
-        
-        #put machine learning model here
-        
+           FlowUpdater(flowDataFrame, interface, capture, captureDuration, IP)
+        else:
+           Status.objects.create(status='Sniffer off')
+           TrafficStatus.objects.create(status='network monitor not active')
+           print('Network Monitor thread terminated.')
     except asyncio.exceptions.CancelledError:
 
         print("Task(s) Cancelled")
-        return -1
+        return 0
 
 
-def FlowUpdater(flowDataFrame, interface, capture_duration, IP):
+def FlowUpdater(flowDataFrame, interface, capture, captureDuration, IP):
 
     for x, row in flowDataFrame.iterrows():
         try:
             Flow.objects.create(
-            
             flowID=row['flowID'],
             srcIP=row['srcIP'],
             dstPort=row['dstPort'],
@@ -385,6 +419,9 @@ def FlowUpdater(flowDataFrame, interface, capture_duration, IP):
             eceFlag=row['ECE-Flag count'],
             cwrFlag=row['CWR-Flag count'],
             
+            fwdUniquePorts=row['Unique Ports'],
+            authFailures=row['Auth Failures'],
+            
             FwdPacketByteRate=row['Fwd Packet Bytes/s'],
             BwdPacketByteRate=row['Bwd Packet Bytes/s'],
             
@@ -407,20 +444,30 @@ def FlowUpdater(flowDataFrame, interface, capture_duration, IP):
             continue
     
     print(len(Flow.objects.all()),'flows inserted.')
-    MachineLearningTesting(flowDataFrame)
     
-    FlowExtractor(interface, capture_duration, IP)
+    if (os.path.exists('model.tf')):
+       MachineLearningTesting(flowDataFrame)
+    
+    FlowExtractor(interface, capture, captureDuration, IP)
+    return 0
+    
 def main(IP):
 
-    #if os.path.exists(flowFile) and os.path.isfile(flowFile):
-        #os.remove(flowFile)
-    capture_duration = 15
+    captureDuration = 30
 
     print("Flow extractor is running.")
     Flow.objects.all().delete()
 
-    response = FlowExtractor('eth0', capture_duration, IP)
-    return response;
+    XRDPCIDR = "78.17.171.0/24"
+    DHCP = "255.255.255.255"
+    if IP:
+       filter = f"(src host {IP} or dst host {IP})"
+       capture = pyshark.LiveCapture(interface='eth0',bpf_filter=filter)
+    else:
+       filter = f"(not net {XRDPCIDR} and not dst host {DHCP})"
+       capture = pyshark.LiveCapture(interface='eth0',bpf_filter=filter)
+       
+    response = FlowExtractor('eth0', capture, captureDuration, IP)
     
 if __name__ == "__main__":
     main()

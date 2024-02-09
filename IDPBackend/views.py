@@ -12,7 +12,6 @@ from rest_framework.authentication import SessionAuthentication
 from IDPBackend.serializers import UserLoginSerializer, UserRegisterSerializer, UserSerializer
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import permissions, status
-from rest_framework import viewsets
 from asgiref.sync import async_to_sync
 from IDPBackend.models import Status
 from IDPBackend.models import TrafficStatus
@@ -25,32 +24,7 @@ from .taskmanager import EventLoops
 import iptc
 import os
 import asyncio
-
-@api_view(['GET', 'POST'])
-def flow_list(request,IP=None):
-
-    if request.method == 'GET':
-        ip = request.GET.get('IP','')
-        print('ip: ',ip)
-        #main runs indefinitely
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        EventLoops['sniffer'] = loop
-        TrafficStatus.objects.create(status='scanning in progress')
-        main(IP)
-        return Response({"status": 'Sniffer returned for some reason.'})
-
-        #serializer = FlowSerializer(flows, context={'request': request}, many=True)
-        #return Response(serializer.data)
-        
-    elif request.method == 'POST':
-
-        serializer = FlowSerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+from threading import Thread
 
 @api_view(['DELETE'])
 def ResetFlowHistory(request):
@@ -85,16 +59,16 @@ def MoveToTraining(request):
          return JsonResponse({'message':'Flow moved'}, status = 200);
       except(FileNotFoundError):
          return JsonResponse({'message':'No flow to move'}, status = 404);
-         
+
+def startTrainerThread(Layers):
+    thread = Thread(target=MachineLearningTraining, args=(Layers,))
+    thread.start()
+           
 @api_view(['POST'])
 def StartTraining(request):
-
-   loop = asyncio.new_event_loop()
-   asyncio.set_event_loop(loop)
-   EventLoops['trainer'] = loop
-   EventLoopTrainer = EventLoops.get('trainer')
+   
    Layers = request.data.get('Layers')
-   MachineLearningTraining(Layers)
+   startTrainerThread(Layers)
    TrainingStatus.objects.create(status='Training started.',previousTimestamp='today');
    
    
@@ -185,23 +159,23 @@ def UserLogout(request):
 @api_view(['GET'])
 def UserView(request):
         
-   authenticationcats = (permissions.IsAuthenticated,)
-   permissioncats = (permissions.AllowAny,)
+   #authenticationcats = (permissions.IsAuthenticated,)
+   #permissioncats = (permissions.AllowAny,)
    
    if (request.method == 'GET'):
       
-      serializer = UserSerializer(request.user)
+      if request.user.is_authenticated:
+         serializer = UserSerializer(request.user)
       
-      return Response({'user': serializer.data}, status=status.HTTP_200_OK)
-
-
+         return Response({'user': serializer.data}, status=status.HTTP_200_OK)
+      else:
+         return Response({'error': 'nobody is logged in'})
+         
 @api_view(['GET','POST'])
 def TrainingInfo(request):
    if (request.method == 'GET'):
       queryset = TrainingStatus.objects.all()
       serializer = TrainingStatusSerializer(queryset, many=True)
-
-      
       return Response(serializer.data);
       
    elif (request.method == 'POST'):
@@ -211,24 +185,44 @@ def TrainingInfo(request):
          TrainingStatus.objects.all().delete()
          serializer.save()
          return JsonResponse({"database": "instance created"});
-   else:
-      return JsonResponse({"error": "who knows"});
-      
+
+def startSnifferThread(IP):
+    thread = Thread(target=main, args=(IP,))
+    thread.start()
+    
+@api_view(['GET', 'POST'])
+def flow_list(request,IP=None):
+
+    if request.method == 'GET':
+        ip = request.GET.get('IP','')
+        print('ip: ',ip)
+        startSnifferThread(IP)
+
+        EventLoops['sniffer'] = 'on'
+        TrafficStatus.objects.create(status='scanning in progress')
+
+        return Response({"status": 'Sniffer started on a new thread.'})
+    
+    
+    elif request.method == 'POST':
+
+        serializer = FlowSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(status=status.HTTP_201_CREATED)
+
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    
 @api_view(['GET', 'POST'])
 def stopSnifferCapture(request):
-
    EventLoop = EventLoops.get('sniffer')
-   if EventLoop is None:
-        return JsonResponse({'status': 'Already stopped!'});
-   else:
-      for task in asyncio.all_tasks(EventLoop):
-        task.cancel()
-      
-   Status.objects.create(status='Sniffer Off');
-   if EventLoop.is_closed():
-      print('Event loop successfully stopped')
-   EventLoops['sniffer'] = None
-   return JsonResponse({'status': 'Sniffer Off'});
+   if EventLoop == 'off':
+      return JsonResponse({'status': 'Already stopped!'});
+   
+   EventLoops['sniffer'] = 'off'
+   
+   return Response({'status':'Sniffer thread will terminate shortly.'})
    
 @api_view(['GET', 'POST'])
 def SnifferStatus(request):
@@ -245,7 +239,7 @@ def SnifferStatus(request):
       return Response(serializer.data)
 
 
-@api_view(['POST','GET'])
+@api_view(['GET','POST'])
 def TrafficStatusView(request):
    if request.method == 'POST':
         serializer = TrafficStatusSerializer(data=request.data)
@@ -257,7 +251,7 @@ def TrafficStatusView(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
    
    
-   elif request.method == 'GET':
+   if request.method == 'GET':
 
       EventLoop = EventLoops.get('sniffer')
       LatestTrafficStatus = TrafficStatus.objects.last().status  
