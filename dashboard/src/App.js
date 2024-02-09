@@ -1,6 +1,5 @@
 import './App.css';
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -12,6 +11,7 @@ import Form from 'react-bootstrap/Form';
 import Sniffer from './Sniffer';
 import Dashboard from './Dashboard';
 import Trainer from './Trainer';
+import Alerts from './Alerts';
 
 import axios from 'axios';
 import Container from 'react-bootstrap/Container';
@@ -29,9 +29,7 @@ function App() {
   
   const [currentUser, setCurrentUser] = useState();
   const [currentUserGroup, setCurrentUserGroup] = useState([]);
-  const [registrationToggle, setRegistrationToggle] = useState(false);
   const [email, setEmail] = useState('');
-  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   
   useEffect(() => {
@@ -84,6 +82,7 @@ function App() {
 				<Route path="/" element={<Dashboard />} />
 				<Route path="/trainer" element={<Trainer />} />
 				<Route path="/sniffer" element={<Sniffer />} />
+				<Route path="/alerts" element={<Alerts />} />
 			</Routes>
 		</Router>
 
@@ -96,6 +95,7 @@ function App() {
 			<Routes>
 				<Route path="/" element={<Dashboard />} />
 				<Route path="/sniffer" element={<Sniffer />} />
+				<Route path="/alerts" element={<Alerts />} />
 				<Route path="/trainer" element={<NoAccessComponent group="Data Flow Architect" />} />
 			</Routes>
 		</Router>
@@ -131,9 +131,7 @@ function App() {
             <Form.Group className="mb-3" controlId="formBasicEmail">
               <Form.Label>Email address</Form.Label>
               <Form.Control type="email" placeholder="Enter email" value={email} onChange={e => setEmail(e.target.value)} />
-              <Form.Text className="text-muted">
-                We'll never share your email with anyone else.
-              </Form.Text>
+
             </Form.Group>
             <Form.Group className="mb-3" controlId="formBasicPassword">
               <Form.Label>Password</Form.Label>

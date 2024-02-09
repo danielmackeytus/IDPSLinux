@@ -28,6 +28,7 @@ const [TrafficStatus, setTrafficStatus] = useState('');
 		if (response.ok) {
 		const data = await response.json();
 		setTrafficStatus(data.status);
+		
 		} else {
 		  setTrafficStatus('network monitor not active')
 		}
@@ -72,6 +73,9 @@ return (
         <Nav.Item>
           <Nav.Link as={Link} to="/trainer">Trainer</Nav.Link>
         </Nav.Item>
+        <Nav.Item>
+          <Nav.Link as={Link} to="/alerts">Alerts</Nav.Link>
+          </Nav.Item>
         <Nav.Item>
           <Nav.Link onClick={logout}>Log Out</Nav.Link>
         </Nav.Item>

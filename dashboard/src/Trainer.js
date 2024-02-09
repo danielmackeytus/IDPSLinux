@@ -112,7 +112,7 @@ function Trainer() {
 		<h5 class="mt-3">{Msg}</h5>
 			{Msg2}
 		<div class="mb-4">
-			<button onClick={StartTraining} className="btn btn-success">Start Training</button>
+			<button onClick={StartTraining} type="button" className="btn btn-success">Start Training</button>
 		</div>
 		
   <Button onClick={handleClick} variant="primary" className="mb-2">Add Layer</Button>

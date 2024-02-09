@@ -9,18 +9,7 @@ function Sniffer() {
   const [IP,setIP] = useState('');
   const [FlowID,setFlowID] = useState('');
   const [Label,setLabel] = useState('');
-  const [anomalousFlow, setAnomalousFlow] = useState([]);
-  const [categorizedFlows, setCategorizedFlows] = useState({});
-  const [selectedSrcIP, setSelectedSrcIP] = useState();
 
-  useEffect(() => {
-	async function FetchAnomalousFlow() {
-            const response = await fetch('https://danielmackey.ie/api/FetchAnomalousFlow/');
-            const data = await response.json();
-	    setAnomalousFlow(data)
-	}
-	FetchAnomalousFlow();
-  }, []);
 
   useEffect(() => {
 	async function fetchStatus() {
@@ -31,29 +20,6 @@ function Sniffer() {
 	fetchStatus();
   }, []);
   
-  useEffect(() => {
-        const categorizeFlowsBySourceIP = (flows) => {
-        
-            const categorized = {};
-            
-            flows.forEach(flow => {
-            
-                if (!categorized[flow.srcIP]) {
-                    categorized[flow.srcIP] = [];
-                }
-                
-                categorized[flow.srcIP].push(flow);
-            });
-            
-            return categorized;
-        };
-        
-        if (anomalousFlow != null) {
-           const categorized = categorizeFlowsBySourceIP(anomalousFlow);
-           setCategorizedFlows(categorized);
-        }
-    }, [anomalousFlow]);
-    
     
   function getCSRFToken() {
   
@@ -81,15 +47,19 @@ function Sniffer() {
 		if (!response.ok){
 			setMsg("No connection to backend.")
 		}
+		
+		const data = await response.json();
+		setMsg(data.status)
+        
 	} catch (error) {
 		setMsg("Error turning on.")
 		}
      } else {
         setMsg("Already started!")
         }
+        
   }
 
-  
   const ResetFlowHistory = async () => {
   	const response = await fetch(`https://danielmackey.ie/api/DeleteFlowHistory/`, {method: 'DELETE',
   	headers: {
@@ -112,6 +82,7 @@ function Sniffer() {
 		if (response.ok) {
 			const data = await response.json();
 			setMsg(data.status);
+			
 		} else {
 			setMsg("No connection to backend.")
 		}
@@ -143,67 +114,10 @@ function Sniffer() {
   		setMsg("error");
   	}
   }
-   
-  const showFlowByIP = (srcIP) => {
-        setSelectedSrcIP(selectedSrcIP === srcIP ? null : srcIP);
-    };
-                     
+    
   const alterIP = (IP) => {
         setIP(IP.target.value);
     };
-  
-  const BanIP = async (srcIP) => {
-        try {
-  		const JSONFlow = {
-  			IPAddress: srcIP,
-  		};
-  		const response = await fetch(`https://danielmackey.ie/api/BanIP/`, {method: 'POST',
-  		body: JSON.stringify(JSONFlow),
-  		headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': csrftoken,
-        },
-  		});
-
-  		const data = await response.json();
-  		setMsg(data.status);
-    
-    
-        if (data == null) {
-  	   setMsg('No connection to backend');
-  	   }
-  	   
-  	} catch (error) {
-  		setMsg("error");
-  	}
-  }
-  
-  const UnbanIP = async (srcIP) => {
-        try {
-  		const JSONFlow = {
-  			IPAddress: srcIP,
-  		};
-  		const response = await fetch(`https://danielmackey.ie/api/UnbanIP/`, {method: 'POST',
-  		body: JSON.stringify(JSONFlow),
-  		headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': csrftoken,
-        },
-  		});
-
-  		const data = await response.json();
-  		setMsg(data.status);
-    
-    
-        if (data == null) {
-  	   setMsg('No connection to backend');
-  	   }
-  	   
-  	} catch (error) {
-  		setMsg("error");
-  	}
-  }
-  
   
     
   const alterFlowID = (flowID) => {
@@ -250,32 +164,6 @@ function Sniffer() {
         		<button onClick={MoveToTraining}>Move to Training</button>
         		
         		</div>
-        		<h4>Anomalous Flows</h4>
-
-        <div>
-            {Object.keys(categorizedFlows).map((srcIP, index) => (
-                <div key={index}>
-                    <h5>Source IP: {srcIP}</h5>
-                    <Button onClick={() => showFlowByIP(srcIP)}>
-                    {selectedSrcIP == srcIP ? 'Hide flows' : 'Show Flows'}</Button>
-                    
-
-                    <Button onClick={() => BanIP(srcIP)}>Ban IP</Button>
-
-                    <Button onClick={() => UnbanIP(srcIP)}>Unban IP</Button>
-                    
-                    {selectedSrcIP === srcIP && (
-                        <ul>
-                            {categorizedFlows[srcIP].map((flow, flowIndex) => (
-                                <li key={flowIndex}>
-                                    Flow ID: {flow.flowID} - Label: {flow.Label}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </div>
-            ))}
-        </div>
         </>
         )
 };
