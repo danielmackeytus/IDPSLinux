@@ -2,7 +2,7 @@ import './App.css';
 import React, { useState, useEffect } from "react";
 import Button from 'react-bootstrap/Button';
 import NavbarComponent from './NavbarComponent';
-
+import Container from 'react-bootstrap/Container';
 
 function Sniffer() {
   const [Msg, setMsg] = useState('Unknown');
@@ -13,9 +13,13 @@ function Sniffer() {
 
   useEffect(() => {
 	async function fetchStatus() {
-		const response = await fetch('https://danielmackey.ie/api/status/');
+		const response = await fetch('https://danielmackey.ie/api/status/', {
+		method: 'GET',
+		credentials: 'include',
+		})
 		const data = await response.json();
 		setMsg(data.status);
+
 	}
 	fetchStatus();
   }, []);
@@ -42,8 +46,15 @@ function Sniffer() {
 	setMsg('Starting sniffer..');
 	try {
 		setMsg('Sniffer On');
-		const response = await fetch(`https://danielmackey.ie/api/startCapture/${IP}`);
-		
+		const response = await fetch(`https://danielmackey.ie/api/startCapture/${IP}`, {
+		method: 'POST',
+		credentials: 'include',
+
+		headers: {
+  	     'Content-Type': 'application/json',
+  	     'X-CSRFToken': csrftoken,
+  	    }});
+
 		if (!response.ok){
 			setMsg("No connection to backend.")
 		}
@@ -61,7 +72,8 @@ function Sniffer() {
   }
 
   const ResetFlowHistory = async () => {
-  	const response = await fetch(`https://danielmackey.ie/api/DeleteFlowHistory/`, {method: 'DELETE',
+  	const response = await fetch(`https://localhost:8000/api/DeleteFlowHistory/`, {method: 'DELETE',
+  	credentials: 'include',
   	headers: {
   	'Content-Type': 'application/json',
   	'X-CSRFToken': csrftoken,
@@ -78,7 +90,14 @@ function Sniffer() {
   const StopCaptureButton = async () => {
 	setMsg('Stopping sniffer..');
 	try {
-		const response = await fetch('https://danielmackey.ie/api/stopCapture/');
+		const response = await fetch('https://danielmackey.ie/api/stopCapture/', {
+		method: 'POST',
+		credentials: 'include',
+		headers: {
+  	      'Content-Type': 'application/json',
+  	      'X-CSRFToken': csrftoken,
+		}});
+
 		if (response.ok) {
 			const data = await response.json();
 			setMsg(data.status);
@@ -96,12 +115,14 @@ function Sniffer() {
   			FlowIdentifier: FlowID,
   			ClassLabel: Label,
   		};
-  		const response = await fetch(`https://danielmackey.ie/api/MoveToTraining/`, {method: 'POST',
+  		const response = await fetch(`https://danielmackey.ie//api/MoveToTraining/`, {
+  		method: 'POST',
+  		credentials: 'include',
   		body: JSON.stringify(JSONFlow),
   		headers: {
-        'Content-Type': 'application/json',
-        'X-CSRFToken': csrftoken,
-        },
+           'Content-Type': 'application/json',
+           'X-CSRFToken': csrftoken,
+           },
   		});
 
   		const data = await response.json();
@@ -128,15 +149,24 @@ function Sniffer() {
   };
   return (
 	<>
+
 	<NavbarComponent/>
+<Container fluid>
+
 	<h4 class="mb-3">{Msg}</h4>
-	
-	<div class="mb-1">
-			<button onClick={StartCaptureButton}>Run Sniffer</button>
-			<button onClick={StopCaptureButton}>Stop Sniffer</button>
-			<button onClick={ResetFlowHistory}>Reset Flow History</button>
+
+
+	<div class="mb-2 d-flex align-items-center gap-1">
+
+			<button onClick={StartCaptureButton}
+			className="btn btn-primary">Run Sniffer</button>
+			<button onClick={StopCaptureButton}
+			className="btn btn-danger">Stop Sniffer</button>
+			<button onClick={ResetFlowHistory}
+			className="btn btn-light">Reset Flow History</button>
 			</div>
-	<div id="IPbox">
+
+	<div class="mt-1 IPbox">
                 <input
                     type="text"
                     value={IP}
@@ -144,7 +174,7 @@ function Sniffer() {
                     placeholder="(Optional) IP to be sniffed"
                 />
                 </div>
-        <div id="FlowIdentifier">
+        <div class="mt-1 FlowIdentifier">
            <input required
               type="text"
               value={FlowID}
@@ -152,7 +182,7 @@ function Sniffer() {
               placeholder="Name the flow"
               />
         </div>
-        <div id="ClassLabel">
+        <div class="mt-1 aLabel">
            <input required
               type="text"
               value={Label}
@@ -161,9 +191,12 @@ function Sniffer() {
               />
         </div>
         <div class="mt-1">
-        		<button onClick={MoveToTraining}>Move to Training</button>
+        		<button onClick={MoveToTraining}
+        		className="btn btn-light">Move to Training</button>
         		
         		</div>
+
+        </Container>
         </>
         )
 };

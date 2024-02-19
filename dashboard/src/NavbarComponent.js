@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import Nav from 'react-bootstrap/Nav';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import Container from 'react-bootstrap/Container';
 
 axios.defaults.xsrfCookieName = 'csrftoken';
 axios.defaults.xsrfHeaderName = 'X-CSRFToken';
@@ -12,18 +13,23 @@ axios.defaults.withCredentials = true;
 function NavbarComponent() {
 
 const client = axios.create({
-  baseURL: "https://danielmackey.ie/"
-  
+  baseURL: "https://localhost:8000/",
+  withCredentials: true,
+  withXSRFToken: true,
 });
 
 
 const [TrafficStatus, setTrafficStatus] = useState('');
-  
+
   useEffect(() => {
-	
+
 	async function fetchTrafficStatus() {
          
-		const response = await fetch('https://danielmackey.ie/api/TrafficStatus/');
+		const response = await fetch('https://localhost:8000/api/TrafficStatus/', {
+           method: 'GET',
+		   credentials: 'include',
+		   }
+		);
 		
 		if (response.ok) {
 		const data = await response.json();
@@ -48,22 +54,25 @@ const [TrafficStatus, setTrafficStatus] = useState('');
   const logout = async () => {
      try {
   	await client.post(
-      		"api/logout/")
+      		"api/logout/");
+
       		console.log('logged out successfully')
-      		window.location.reload()
+      		window.location.href = ('https://localhost:3000')
       
      } catch(error) {
      	console.log('logged out unsuccessfully')
      }
   }
-  
+
 return (
 <>
-<li>
+  <Container fluid>
+  <li>
   Traffic Status: <span style={{ color: TrafficStatus === 'Normal' ? 'green' : 'red' }}>{TrafficStatus}</span>
   </li>
-   
-  <Nav className="justify-content-center border border-dark mb-3" activeKey="/">
+  </Container>
+
+  <Nav className="bg-body justify-content-center border border-dark mb-3" activeKey="/">
         <Nav.Item>
           <Nav.Link as={Link} to="/">Dashboard</Nav.Link>
         </Nav.Item>

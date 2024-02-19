@@ -25,13 +25,14 @@ SECRET_KEY = "django-insecure-xbkmq7rddi8w%_fz5)ag6bj&2(o2trm)q)#xq3$71@$vwc9*q=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['danielmackey.ie', 'www.danielmackey.ie', '127.0.0.1', '0.0.0.0', '149.102.157.168', 'localhost']
+ALLOWED_HOSTS = ['danielmackey.ie', 'www.danielmackey.ie', 'localhost','127.0.0.1']
 
 # Application definition
 
 
 INSTALLED_APPS = [
     "django.contrib.admin",
+    "rest_framework.authtoken",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -61,11 +62,9 @@ CORS_ALLOW_CREDENTIALS = True
 
 
 CORS_ALLOWED_ORIGINS = [
-    "http://0.0.0.0:3000",
-    "https://0.0.0.0:3000",
     "https://localhost:3000",
-    "http://localhost:3000",
-    'https://danielmackey.ie'
+    'https://danielmackey.ie',
+    'https://127.0.0.1'
  ]
 
 TEMPLATES = [
@@ -86,6 +85,11 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "IntrusionDetectionPrevention.wsgi.application"
 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'rest_framework.authentication.SessionAuthentication',
+    )
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
@@ -96,10 +100,26 @@ DATABASES = {
         "NAME": BASE_DIR / "db.sqlite3",
     }
 }
+CSRF_COOKIE_SAMESITE = 'None'
+CSRF_COOKIE_SECURE = True
 
+SESSION_COOKIE_SAMESITE = 'None'
+SESSION_COOKIE_SECURE = True
 AUTH_USER_MODEL = 'IDPBackend.AppUser'
 
-CSRF_TRUSTED_ORIGINS = ['https://danielmackey.ie','http://0.0.0.0:3000','http://localhost:3000','https://localhost:3000']
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
+
+CSRF_TRUSTED_ORIGINS = ['https://danielmackey.ie','https://localhost:3000','https://127.0.0.1']
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_USE_TLS = True
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_HOST_USER = 'virmanasamp@gmail.com'
+EMAIL_HOST_PASSWORD= 'acmx zgiy kugf qkcd'
+EMAIL_PORT = 587
+
 
 # Password validation
 # https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators

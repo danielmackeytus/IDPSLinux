@@ -21,8 +21,9 @@ axios.defaults.xsrfHeaderName = 'X-CSRFToken';
 axios.defaults.withCredentials = true;
 
 const client = axios.create({
-  baseURL: "https://danielmackey.ie/",
+  baseURL: "https://localhost:8000/",
   withCredentials: true,
+  withXSRFToken: true,
 });
 
 function App() {
@@ -31,14 +32,16 @@ function App() {
   const [currentUserGroup, setCurrentUserGroup] = useState([]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  
+
   useEffect(() => {
-  
+
      try {
     	client.get("api/user/")
     	.then(function(res) {
       	setCurrentUser(true);
-      	setCurrentUserGroup(res.data.user.groups)
+      	if (res.data.user) {
+      	   setCurrentUserGroup(res.data.user.groups)
+      	 }
     	}
       )
     	} catch(AttributeError) {
@@ -72,7 +75,7 @@ function App() {
       .then(res => {
       	setCurrentUser(true);
         setCurrentUserGroup(res.data.user.groups);
-})
+   })
 }
   
   if (currentUserGroup.includes(1) && currentUserGroup.includes(2)) {	
