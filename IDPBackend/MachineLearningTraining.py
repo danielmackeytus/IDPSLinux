@@ -17,6 +17,7 @@ from sklearn.metrics import f1_score
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow.keras import Input, layers, Model
 from IDPBackend.models import Flow
+from IDPBackend.models import TFMetrics
 import joblib
 from scipy import stats
 import os
@@ -96,6 +97,11 @@ def MachineLearningTraining(Layers, Epochs):
     history = model.fit(x_train, y_train, epochs=int(epoch), batch_size=128, validation_data=(x_val, y_val),
                         callbacks=[early_stopping, model_checkpoint])
 
+
+    TFMetrics.objects.create(accuracy=history.history['accuracy'][-1],loss=history.history['loss'][-1],
+                             val_accuracy=history.history['val_accuracy'][-1],
+                             val_loss=history.history['val_loss'][-1])
+
     print('Prediction vs actual.')
     y_test_pred = model.predict(x_test)
 
@@ -104,6 +110,7 @@ def MachineLearningTraining(Layers, Epochs):
     print("Validation Loss:", validation_loss)
     print("Validation Accuracy:", validation_accuracy)
     print('Accuracy score: ', accuracy_score(y_test, pred_class))
+
     return 0
     # f1Score = f1_score(y_test,pred_class,average='weighted')
     # print('F1 Score: ',f1Score)

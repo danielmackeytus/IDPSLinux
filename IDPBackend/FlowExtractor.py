@@ -4,7 +4,7 @@ import time
 import os
 import statistics
 import asyncio
-from .taskmanager import EventLoops
+from .taskmanager import Task
 from IDPBackend.models import Flow
 from django.db import IntegrityError
 import numpy as np
@@ -13,7 +13,7 @@ from IDPBackend.models import TrafficStatus
 from IDPBackend.MachineLearningTesting import MachineLearningTesting
 import subprocess
 from threading import Thread
-
+import socket
 
 def startTestingThread(flowDataFrame):
     thread = Thread(target=MachineLearningTesting, args=(flowDataFrame,))
@@ -341,8 +341,8 @@ def FlowExtractor(interface, capture, captureDuration, IP):
                         flows[backward]['bwd varianceDelta'] = statistics.variance(bwdDelta[backward])
                         flows[backward]['bwd meanDelta'] = statistics.mean(bwdDelta[backward])
 
-        EventLoop = EventLoops.get('sniffer')
-        if (EventLoop != 'off'):
+        Tasks = Task.get('sniffer')
+        if (Tasks != 'off'):
             capture.close()
             subprocess.run(["pkill", "-f", "dumpcap -n -i - -Z none"], check=False)
             if os.path.getsize(logFilePath) != 0:
@@ -441,20 +441,24 @@ def FlowUpdater(flowDataFrame, interface, capture, captureDuration, IP):
     FlowExtractor(interface, capture, captureDuration, IP)
     return 0
 
-
 def main(IP):
     captureDuration = 30
-
-    print("Flow extractor is running.")
     #Flow.objects.all().delete()
 
-    XRDPCIDR = "78.17.0.0/24"
+    print("Flow extractor is running.")
+    command = "grep 'client_ip=' /var/log/xrdp.log | tail -n1 | awk -F'client_ip=| client_port=' '{print $2}' | sed 's/::ffff://' | cut -d' ' -f1"
+    ipAddress = subprocess.check_output(command, shell=True, text=True).strip()
+
+    #XRDPCIDR = "78.17.0.0/24"
     DHCP = "255.255.255.255"
     if IP:
         filter = f"(src host {IP} or dst host {IP})"
         capture = pyshark.LiveCapture(interface='eth0', bpf_filter=filter)
     else:
-        filter = f"(not net {XRDPCIDR} and not dst host {DHCP})"
+        #filter = f"(not net {XRDPCIDR} and not dst host {DHCP})"
+        #filter = f"(not dst host {DHCP})"
+        #filter = f"not (net {ipAddress} and dst port 53579 or src port 53579)"
+        filter = f"not net {ipAddress}"
         capture = pyshark.LiveCapture(interface='eth0', bpf_filter=filter)
 
     response = FlowExtractor('eth0', capture, captureDuration, IP)

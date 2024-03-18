@@ -3,6 +3,7 @@ from .models import Flow
 from .models import Status
 from .models import TrafficStatus
 from .models import TrainingStatus
+from .models import TFMetrics
 from .models import FlowStatistics
 from django.contrib.auth import get_user_model, authenticate
 from django.core.exceptions import ValidationError
@@ -34,24 +35,30 @@ class TrafficStatusSerializer(serializers.ModelSerializer):
         fields = ['status']
 
 
+class TFMetricsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TFMetrics
+        fields = '__all__'
+
+
 class TrainingStatusSerializer(serializers.ModelSerializer):
     class Meta:
         model = TrainingStatus
         fields = '__all__'
 
 
-class UserRegisterSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserModel
-        fields = '__all__'
+# class UserRegisterSerializer(serializers.ModelSerializer):
+# class Meta:
+# model = UserModel
+# fields = '__all__'
 
-    def create(self, data):
-        user = UserModel.objects.create_user(email=data['email'],
-                                             password=data['password'])
-        user.username = data['username']
-        user.save()
+# def create(self, data):
+# user = UserModel.objects.create_user(email=data['email'],
+# password=data['password'])
+# user.username = data['email']
+# user.save()
 
-        return user
+# return user
 
 
 def checkIfExists(data):
@@ -69,4 +76,4 @@ class UserLoginSerializer(serializers.Serializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserModel
-        fields = ('email', 'username', 'groups')
+        fields = ('email', 'groups')

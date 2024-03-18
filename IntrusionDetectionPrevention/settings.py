@@ -25,7 +25,7 @@ SECRET_KEY = "django-insecure-xbkmq7rddi8w%_fz5)ag6bj&2(o2trm)q)#xq3$71@$vwc9*q=
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['danielmackey.ie', 'www.danielmackey.ie', 'localhost','127.0.0.1']
+ALLOWED_HOSTS = ['danielmackey.ie', 'www.danielmackey.ie', 'localhost','127.0.0.1', '149.102.157.168']
 
 # Application definition
 
@@ -63,6 +63,7 @@ CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOWED_ORIGINS = [
     "https://localhost:3000",
+    'https://localhost',
     'https://danielmackey.ie',
     'https://127.0.0.1'
  ]
@@ -111,7 +112,7 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
 
-CSRF_TRUSTED_ORIGINS = ['https://danielmackey.ie','https://localhost:3000','https://127.0.0.1']
+CSRF_TRUSTED_ORIGINS = ['https://danielmackey.ie','https://localhost','https://localhost:3000','https://127.0.0.1']
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_USE_TLS = True

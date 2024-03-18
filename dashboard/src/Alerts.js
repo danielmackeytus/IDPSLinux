@@ -69,7 +69,8 @@ function Sniffer() {
        .find((cookie) => cookie.trim().startsWith('csrftoken='));
 
    if (!csrfCookie) {
-     throw new Error('CSRF token not found in cookies.');
+     //throw new Error('CSRF token not found in cookies.');
+     return 0
   }
 
     return csrfCookie.split('=')[1];
@@ -83,6 +84,44 @@ function Sniffer() {
         setSelectedSrcIP(selectedSrcIP === srcIP ? null : srcIP);
     };
 
+  const IgnoreIP = async (srcIP) => {
+        try {
+            const JSONFlow = {
+  			IPAddress: srcIP,
+  		};
+            const response = await fetch('https://danielmackey.ie/api/IgnoreIP/', {
+            method: 'POST',
+            credentials: 'include',
+            body: JSON.stringify(JSONFlow),
+            headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken,
+                },
+            })
+            const data = await response.json();
+            setMsg(data.status)
+    } catch {
+        return 'error'
+    }
+  }
+
+  const DeleteAllAnomalies = async (srcIP) => {
+        try {
+            const response = await fetch('https://danielmackey.ie/api/DeleteAllAnomalies/', {
+            method: 'DELETE',
+            credentials: 'include',
+            headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken,
+                },
+            })
+            const data = await response.json();
+            setMsg(data.status)
+    } catch {
+        return 'error'
+    }
+  }
+
 
   const BanIP = async (srcIP) => {
         try {
@@ -91,7 +130,7 @@ function Sniffer() {
   			IPAddress: srcIP,
   		};
 
-  		   const response = await fetch(`https://localhost:8000/api/banIP/`, { method: 'POST',
+  		   const response = await fetch(`https://danielmackey.ie/api/banIP/`, { method: 'POST',
   		   credentials: 'include',
   		   body: JSON.stringify(JSONFlow),
   		   headers: {
@@ -120,7 +159,7 @@ function Sniffer() {
   			IPAddress: srcIP,
   		};
 
-  		   const response = await fetch(`https://localhost:8000/api/unbanIP/`, { method: 'POST',
+  		   const response = await fetch(`https://danielmackey.ie/api/unbanIP/`, { method: 'POST',
   		   credentials: 'include',
   		   body: JSON.stringify(JSONFlow),
   		   headers: {
@@ -155,8 +194,8 @@ function Sniffer() {
 	<Container fluid>
 
 	                <h4>{Msg}</h4>
-        		<h4>{AnomalyStatus}</h4>
-
+        		<h4 className="mb-2">{AnomalyStatus}</h4>
+                <Button onClick={() => DeleteAllAnomalies()}>Delete all anomalies</Button>
         <div>
             {Object.keys(categorizedFlows).map((srcIP, index) => (
                 <div key={index}>
@@ -173,7 +212,7 @@ function Sniffer() {
                       <Dropdown.Menu>
                         <Dropdown.Item onClick={() => BanIP(srcIP)}>Ban</Dropdown.Item>
                         <Dropdown.Item onClick={() => UnbanIP(srcIP)}>Unban</Dropdown.Item>
-                        <Dropdown.Item href="#/action-3">Ignore</Dropdown.Item>
+                        <Dropdown.Item onClick={() => IgnoreIP(srcIP)}>Ignore</Dropdown.Item>
                       </Dropdown.Menu>
                     </Dropdown>
                     </div>

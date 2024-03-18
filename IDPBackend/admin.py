@@ -4,22 +4,25 @@ from django.contrib.auth.admin import UserAdmin
 
 class CustomUserAdmin(UserAdmin):
     
-    list_display = ('email', 'username', 'password', 'is_staff',)
-    list_filter = ('is_staff',)
+    list_display = ('email', 'password')
+    list_filter = ('email',)
     
+    # modifying a user
     fieldsets = (
-        (None, {'fields': ('email', 'username', 'password')}),
-        ('Permissions', {'fields': ('is_staff','groups','is_superuser')}),
+        (None, {
+             'fields': ('email', 'password')}),
+             ('Assign Group & Whether Super User', {'fields': ('groups','is_superuser')}),
     )
-
+    
+    # adding a user
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email', 'username', 'password1','password2', 'is_staff')}
+            'fields': ('email', 'password1','password2', 'is_staff')}
         ),
     )
 
-    search_fields = ('username',)
-    ordering = ('username',)
+    search_fields = ('email',)
+    ordering = ('email',)
     
 admin.site.register(AppUser, CustomUserAdmin)

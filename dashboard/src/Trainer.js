@@ -4,12 +4,17 @@ import Button from 'react-bootstrap/Button';
 import NavbarComponent from './NavbarComponent';
 import { Form, FormGroup, FormLabel, FormControl } from 'react-bootstrap';
 import Row from 'react-bootstrap/Row';
+import Card from 'react-bootstrap/Card';
 import Col from 'react-bootstrap/Col';
 import Container from 'react-bootstrap/Container';
 
 function Trainer() {
-  const [Msg, setMsg] = useState('');
-  const [Msg2, setMsg2] = useState('');
+  const [Status, setStatus] = useState('Awaiting status update');
+  const [Timestamp, setTimestamp] = useState('Finding Timestamp..');
+  const [validation_accuracy, setValidationAccuracy] = useState('null');
+  const [validation_loss, setValidationLoss] = useState('null');
+  const [accuracy, setAccuracy] = useState('null');
+  const [accuracy_loss, setAccuracy_loss] = useState('null');
   const [Layer, setLayer] = useState([{activation:"",nodes:""}]);
   const [epochs, setEpochs] = useState()
   
@@ -25,15 +30,37 @@ function Trainer() {
                 if (response.ok) {
                    const data = await response.json();
                    
-                   setMsg(data[0].status);
-                   setMsg2(data[0].previousTimestamp);
+                   //setStatus(data.status);
+                   setTimestamp(data[0].previousTimestamp);
 		   
 		   
 		} else {
-		   setMsg('No connection to backend.')
+		   setStatus('No connection to backend.')
 		}
 	}
+	async function fetchTFPerformanceMetrics() {
+
+		const response = await fetch('https://danielmackey.ie/api/MetricInfo/', {
+		   method:'GET',
+		   credentials: 'include',
+                });
+
+                if (response.ok) {
+                   const data = await response.json();
+
+                   setAccuracy(data.accuracy);
+                   console.log('test',data)
+                   setAccuracy_loss(data.loss);
+                   setValidationAccuracy(data.val_accuracy);
+                   setValidationLoss(data.val_loss);
+
+		} else {
+		   setStatus('No connection to backend.')
+		}
+	}
+
 	fetchTrainingStatus();
+	fetchTFPerformanceMetrics();
   }, []);
   
   
@@ -45,7 +72,8 @@ function Trainer() {
        .find((cookie) => cookie.trim().startsWith('csrftoken='));
 
      if (!csrfCookie) {
-       throw new Error('CSRF token not found in cookies.');
+       //throw new Error('CSRF token not found in cookies.');
+       return 0
   }
 
   return csrfCookie.split('=')[1];
@@ -54,15 +82,15 @@ function Trainer() {
   const csrftoken = getCSRFToken();
   
   const StartTraining = async ()  => {
-	setMsg('Starting training..');
+	setStatus('Starting training..');
 
 	const hyperparameters = {
 	   Layers:Layer,
 	   Epochs:epochs
 	}
-		
-		
-	const STresponse = await fetch(`https://localhost:8000/api/StartTraining/`,
+
+
+	const STresponse = await fetch(`https://danielmackey.ie/api/StartTraining/`,
 	   {method:'POST',
 	   credentials: 'include',
 	   body: JSON.stringify(hyperparameters),
@@ -71,15 +99,15 @@ function Trainer() {
 	   'Content-Type': 'application/json',
 		}
 	});
-		
+
 	const data = await STresponse.json();
-		
+
         if (data.status != 'No training files found.') {
-           setMsg('Training started.');
+           setStatus('Training started.');
 	   const currDateTime = new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString();
                    
 	const data = {
-           status: "Last previous training session:",
+           //status: "Previous training session:",
            previousTimestamp: currDateTime,
         };
                    
@@ -94,10 +122,10 @@ function Trainer() {
                  },
 	});
 		
-	setMsg(data[0].status);
-	setMsg2(data[0].previousTimestamp);
+	//setStatus(data.status);
+	setTimestamp(data.previousTimestamp);
 	} else {
-	   setMsg('No training files found.')
+	   setStatus('No training files found.')
 	   }
 		
 	}
@@ -121,70 +149,91 @@ function Trainer() {
   	setLayer(deleteData)
   }
 
+  const AbuseIPDB = async ()  => {
+	try {
+	    setStatus('AbuseIPDBing..');
+		const response = await fetch(`https://danielmackey.ie/api/AbuseIPDB/`, {
+		method: 'GET',
+		credentials: 'include',
+  	    });
+
+		if (!response.ok){
+			setStatus("No connection to backend.")
+		}
+    } catch(error) {
+        console.log('what')
+    }
+    }
+
   return (
   <>
     <NavbarComponent/>
 
 <Container fluid>
-    <Form className="form">
+  <Row>
 
-		<h5 class="mt-4">{Msg}</h5>
-			{Msg2}
-		<div class="mt-2 mb-4">
-			<button onClick={StartTraining} type="button" className="btn btn-success">Start Training</button>
-		</div>
+    <Col md="6" className="mb-4"><Card>
+  <Card.Body>
+      <h4 class="mb-4">{Status}</h4>
+      <h6>Previous Training Session</h6>
+      <p>{Timestamp}</p>
+      <Button onClick={StartTraining} variant="success" className="mt-2">Start Training</Button>
+    </Card.Body>
+    </Card></Col>
 
-  <Col className="col-md-2">
-        <label>Epochs</label>
-        <input 
-          type="text" 
-          className="form-control" 
-          name="epochs" 
-          value={epochs} 
-          onChange={(entered) => handleChange(entered)} 
-          placeholder="Enter Epochs"
-        />
-      </Col>
-  <Button onClick={handleClick} variant="primary" className="mt-4 mb-2">Add Layer</Button>
-  {Layer.map((layer, index) => (
-    <Row className="row" key={index}>
-      <Col className="col-md-2">
-        <label>Activation Layer</label>
-        <input 
-          type="text" 
-          className="form-control" 
-          name="activation" 
-          value={layer.activation} 
-          onChange={(entered) => handleLayerChange(entered, index)} 
-          placeholder="Activation Layer"
-        />
-      </Col>
-      <Col className="col-md-2">
-        <label>Nodes</label>
-        <input 
-          type="text" 
-          className="form-control" 
-          name="nodes" 
-          value={layer.nodes} 
-          onChange={(entered) => handleLayerChange(entered, index)} 
-          placeholder="Nodes" 
-        />
-      </Col>
+    <Col md="6" className="text-center">
+      <h3>Model Performance Metrics</h3>
+      <p><strong>Accuracy:</strong> {accuracy}</p>
+      <p><strong>Accuracy Loss:</strong> {accuracy_loss}</p>
+      <p><strong>Validation Accuracy:</strong> {validation_accuracy}</p>
+      <p><strong>Validation Loss:</strong> {validation_loss}</p>
+    </Col>
 
-      <Col className="col-md-2">
-        <button onClick={() => handleDelete(index)}
-          className="mt-4 btn btn-danger"
-          type="button">
-          Remove
-        </button>
-      </Col>
+
     </Row>
+    <Row>
+    <Col md="4">
+      <Form.Label>Epochs</Form.Label>
+      <Form.Control
+        type="text"
+        value={epochs}
+        onChange={handleChange}
+        placeholder="Enter Epochs"
+      />
+      <Button onClick={handleClick} variant="primary" className="mt-4">Add Layer</Button>
+      </Col>
+      {Layer.map((layer, index) => (
+  <Row key={index} className="align-items-end">
+    <Col md="3" className="mt-4">
+      <Form.Label>Activation Layer</Form.Label>
+      <Form.Control
+        type="text"
+        name="activation"
+        value={layer.activation}
+        onChange={(entered) => handleLayerChange(entered, index)}
+        placeholder="Activation Layer"
+      />
+    </Col>
+    <Col md="2" className="mt-4">
+      <Form.Label>Nodes</Form.Label>
+      <Form.Control
+        type="text"
+        name="nodes"
+        value={layer.nodes}
+        onChange={(entered) => handleLayerChange(entered, index)}
+        placeholder="Nodes"
+      />
+    </Col>
+    <Col md="2" className="mt-4">
 
-  ))}
-
-
-
-</Form></Container>
+      <Button onClick={() => handleDelete(index)} variant="danger" className="mt-4">
+        Remove
+      </Button>
+    </Col>
+  </Row>
+))}
+  </Row>
+</Container>
 </>
     );	
 }

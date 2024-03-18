@@ -22,10 +22,10 @@ function Dashboard() {
             if (flowStatistics.FrequentAttack) {
               const updatedData = flowStatistics.FrequentAttack
               .filter(item => item.Label !== '0')
-              .map((item, index) => ({
-              id: index,
-              value: item.count,
-              label: item.Label,
+                .map((item, index) => ({
+                    id: index,
+                    value: item.count,
+                    label: item.Label,
               }));
 
 
@@ -35,18 +35,15 @@ function Dashboard() {
             if (flowStatistics.FrequentOrigin) {
               const updatedData = flowStatistics.FrequentOrigin
               .filter(item => item.Origin !== 'Nowhere')
-              .map((item, index) => ({
-              id: index,
-              value: item.count,
-              label: item.Origin,
+                .map((item, index) => ({
+                    id: index,
+                    value: item.count,
+                    label: item.Origin,
               }));
 
 
         setPieChartFO(updatedData);
       }
-
-            console.log('data:',flowStatistics.FrequentAttack)
-            console.log('data2:',flowStatistics)
             setFlowStatistics(flowStatistics)
 	    }
 	
@@ -59,19 +56,20 @@ return (
   <NavbarComponent/>
   <Container fluid>
 
-  <h2>In Development - 
-  Intrusion Detection & Prevention System - Dashboard</h2>
-
-  <h3><p>Top 5 most frequent attacks</p></h3>
+  <h3 className="mt-5"><p>Top 5 most frequent attacks</p></h3>
 
     <PieChart
       series={[
 
-        {data: PieChartFA}
-        ,
-      ]}
-      width={400}
+        {data: PieChartFA,
+        },
+      ]
+      }
+
+      width={550}
       height={200}
+      margin={{left:-50}}
+
     />
 
  {FlowStatistics.FrequentAttack && FlowStatistics.FrequentAttack.map((item,index) => (
@@ -85,17 +83,16 @@ return (
   ): null))
   }
 
-
-
-  <h3><p>Top 5 most frequent origins</p></h3>
+  <h3 className="mt-5"><p>Top 5 most frequent origins</p></h3>
 
     <PieChart
       series={[
 
         {data: PieChartFO},
       ]}
-      width={400}
+      width={550}
       height={200}
+      margin={{left:-50}}
 
     />
 

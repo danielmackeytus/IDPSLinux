@@ -7,14 +7,12 @@ import Container from 'react-bootstrap/Container';
 
 axios.defaults.xsrfCookieName = 'csrftoken';
 axios.defaults.xsrfHeaderName = 'X-CSRFToken';
-axios.defaults.withCredentials = true;
 
 
 function NavbarComponent() {
 
 const client = axios.create({
-  baseURL: "https://localhost:8000/",
-  withCredentials: true,
+  baseURL: "https://danielmackey.ie/",
   withXSRFToken: true,
 });
 
@@ -25,7 +23,7 @@ const [TrafficStatus, setTrafficStatus] = useState('');
 
 	async function fetchTrafficStatus() {
          
-		const response = await fetch('https://localhost:8000/api/TrafficStatus/', {
+		const response = await fetch('https://danielmackey.ie/api/TrafficStatus/', {
            method: 'GET',
 		   credentials: 'include',
 		   }
@@ -57,7 +55,7 @@ const [TrafficStatus, setTrafficStatus] = useState('');
       		"api/logout/");
 
       		console.log('logged out successfully')
-      		window.location.href = ('https://localhost:3000')
+      		window.location.href = ('https://danielmackey.ie')
       
      } catch(error) {
      	console.log('logged out unsuccessfully')
@@ -72,7 +70,7 @@ return (
   </li>
   </Container>
 
-  <Nav className="bg-body justify-content-center border border-dark mb-3" activeKey="/">
+  <Nav className="shadow bg-body justify-content-center border border-dark mb-3" activeKey="/">
         <Nav.Item>
           <Nav.Link as={Link} to="/">Dashboard</Nav.Link>
         </Nav.Item>

@@ -16,14 +16,9 @@ import Alerts from './Alerts';
 import axios from 'axios';
 import Container from 'react-bootstrap/Container';
 
-axios.defaults.xsrfCookieName = 'csrftoken';
-axios.defaults.xsrfHeaderName = 'X-CSRFToken';
-axios.defaults.withCredentials = true;
-
 const client = axios.create({
-  baseURL: "https://localhost:8000/",
+  baseURL: "https://danielmackey.ie/",
   withCredentials: true,
-  withXSRFToken: true,
 });
 
 function App() {
@@ -35,20 +30,16 @@ function App() {
 
   useEffect(() => {
 
-     try {
     	client.get("api/user/")
     	.then(function(res) {
-      	setCurrentUser(true);
       	if (res.data.user) {
       	   setCurrentUserGroup(res.data.user.groups)
       	 }
     	}
       )
-    	} catch(AttributeError) {
-		
-      		setCurrentUser(false);
-      		
-    	}
+    	.catch(error => {
+    	   console.log("No user logged in yet.")
+    	})
   	}, []);
   
   
@@ -73,7 +64,6 @@ function App() {
       "api/user/");
       })
       .then(res => {
-      	setCurrentUser(true);
         setCurrentUserGroup(res.data.user.groups);
    })
 }

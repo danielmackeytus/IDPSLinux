@@ -4,7 +4,6 @@ from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 
 
-# Create your models here.
 class Status(models.Model):
     status = models.CharField(max_length=20)
 
@@ -18,6 +17,14 @@ class TrafficStatus(models.Model):
     def _str_(self):
         return f"{self.status}"
 
+class TFMetrics(models.Model):
+    accuracy = models.CharField(max_length=35)
+    loss = models.CharField(max_length=35)
+    val_accuracy = models.CharField(max_length=35)
+    val_loss = models.CharField(max_length=35)
+
+    def _str_(self):
+        return f"{self.accuracy}"
 
 class TrainingStatus(models.Model):
     status = models.CharField(max_length=50)
@@ -30,6 +37,7 @@ class TrainingStatus(models.Model):
 class FlowStatistics(models.Model):
     FrequentAttack = JSONField()
     FrequentOrigin = JSONField()
+    srcIP = JSONField()
 
     def _str_(self):
         return f"{self.FrequentAttack}"
@@ -131,11 +139,11 @@ class AppUserManager(BaseUserManager):
 class AppUser(AbstractBaseUser, PermissionsMixin):
     user_id = models.AutoField(primary_key=True)
     email = models.EmailField(max_length=50, unique=True)
-    username = models.CharField(max_length=50)
     is_staff = models.BooleanField(default=False)
+    is_superuser = models.BooleanField(default=False)
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
     objects = AppUserManager()
 
     def __str__(self):
-        return self.username
+        return self.email
