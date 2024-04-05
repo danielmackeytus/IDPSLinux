@@ -1,29 +1,18 @@
 import numpy as np
-import tensorflow as tf
-from tensorflow import keras
 import pandas as pd
 from sklearn.model_selection import train_test_split
-from sklearn import metrics
-from tensorflow.keras.models import Sequential, load_model
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.layers import Dense
-from sklearn.decomposition import PCA
-from tensorflow.keras.constraints import MaxNorm
 from sklearn.metrics import accuracy_score
 from sklearn import preprocessing
-from sklearn.metrics import f1_score
 from sklearn.preprocessing import MinMaxScaler
-from tensorflow.keras import Input, layers, Model
-from IDPBackend.models import Flow
 from IDPBackend.models import TFMetrics
 import joblib
-from scipy import stats
 import os
 from joblib import dump
 from imblearn.over_sampling import SMOTE
-import sys
 
 
 def MachineLearningTraining(Layers, Epochs):
@@ -49,6 +38,7 @@ def MachineLearningTraining(Layers, Epochs):
 
     print('Encoding x values.')
     x = pd.get_dummies(TrainingData.drop(['Label', ], axis=1))
+
     columns = x.columns
     joblib.dump(columns, 'model-columns.pkl')
     sc = MinMaxScaler()
@@ -78,6 +68,7 @@ def MachineLearningTraining(Layers, Epochs):
     print('activationLayer', activationLayer)
 
     model.add(Dense(nodes, activation=activationLayer, input_shape=(len(X.columns),)))
+
 
     for x in range(1, len(Layers)):
         activationLayer = Layers[x]['activation']

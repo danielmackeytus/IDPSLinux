@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import path, re_path
 from IDPBackend import views
-from IDPBackend.views import VulnerableView
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/startCapture//', views.startSnifferCapture),
@@ -10,11 +10,12 @@ urlpatterns = [
     path('api/StartTraining/', views.StartTraining),
     path('api/FetchAnomalousFlow/', views.fetchAnomalousFlow),
     path('api/DeleteFlowHistory/', views.ResetFlowHistory),
+    path('api/FetchHostIP/', views.FetchHostIP),
     path('api/IgnoreIP/', views.IgnoreIP),
     path('api/MoveToTraining/', views.MoveToTraining),
     path('api/FetchFlowStatistics/', views.FetchFlowStatistics),
     path('api/banIP/', views.BanIP),
-    path('api/vulnerable/', views.VulnerableView),
+    #path('api/vulnerable/', views.VulnerableView),
     path('api/AbuseIPDB/', views.AbuseIPDB),
     path('api/unbanIP/', views.UnbanIP),
     path('api/DeleteAllAnomalies/', views.DeleteAllAnomalies),

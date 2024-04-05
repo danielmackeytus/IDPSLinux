@@ -13,7 +13,7 @@ from IDPBackend.models import TrafficStatus
 from IDPBackend.MachineLearningTesting import MachineLearningTesting
 import subprocess
 from threading import Thread
-import socket
+
 
 def startTestingThread(flowDataFrame):
     thread = Thread(target=MachineLearningTesting, args=(flowDataFrame,))
@@ -35,13 +35,10 @@ def FlowExtractor(interface, capture, captureDuration, IP):
     bwdDelta = {}
     startTime = time.time()
     logFilePath = '/var/log/auth.log'
-    fwdIFT = {}
-    bwdIFT = {}
 
     try:
         Status.objects.create(status='Sniffer On')
         for packet in capture.sniff_continuously():
-            # print(packet)
             currentTime = time.time()
 
             if currentTime - startTime >= captureDuration:
@@ -53,7 +50,6 @@ def FlowExtractor(interface, capture, captureDuration, IP):
             timeDelta = 0
 
             if 'ip' in packet and packet is not None:
-                outgoing = (packet.ip.src == "149.102.157.168")
 
                 protocol = packet.transport_layer
                 if protocol:
@@ -70,18 +66,6 @@ def FlowExtractor(interface, capture, captureDuration, IP):
                 else:
                     continue;
 
-                if outgoing:
-                    # My IP address is prioritized as the source, if i am sending.
-                    # The receiver is prioritized as the destination.
-                    flowID = "{} {} {} {} {}".format(srcIP, srcPort, dstIP, dstPort, protocol)
-                    backward = "{} {} {} {} {}".format(dstIP, dstPort, srcIP, srcPort, protocol)
-                else:
-
-                    # My IP address is prioritized as the destination, if i am receiving
-                    # The sender is prioritized as the source
-                    flowID = "{} {} {} {} {}".format(dstIP, dstPort, srcIP, srcPort, protocol)
-                    backward = "{} {} {} {} {}".format(srcIP, srcPort, dstIP, dstPort, protocol)
-
                 key = srcIP + dstIP
                 fwdUniquePorts.setdefault(key, [])
 
@@ -90,22 +74,13 @@ def FlowExtractor(interface, capture, captureDuration, IP):
 
                 elapsedTime = 0
 
-                flowID = "{} {} {} {} {}".format(srcIP, srcPort, dstIP, dstPort, protocol)
-                backward = ("{} {} {} {} {}".format(dstIP, dstPort, srcIP, srcPort, protocol))
+                forward = "{} {} {} {} {}".format(srcIP, srcPort, dstIP, dstPort, protocol)
+                backward = "{} {} {} {} {}".format(dstIP, dstPort, srcIP, srcPort, protocol)
 
-                fwdByteCountList.setdefault(flowID, [])
-                bwdByteCountList.setdefault(backward, [])
+                if forward not in flows and backward not in flows:
+                    flows[forward] = {
 
-                fwdDelta.setdefault(flowID, [])
-                bwdDelta.setdefault(backward, [])
-
-                fwdPayloadSizes.setdefault(flowID, [])
-                bwdPayloadSizes.setdefault(backward, [])
-
-                if flowID not in flows and backward not in flows:
-                    flows[flowID] = {
-
-                        'flowID': flowID,
+                        'forward': forward,
                         'srcIP': srcIP,
                         'dstPort': dstPort,
                         'Unique Ports': len(fwdUniquePorts[key]),
@@ -150,18 +125,42 @@ def FlowExtractor(interface, capture, captureDuration, IP):
                         'bwd stDevByteSize': 0.0,
                         'bwd varianceByteSize': 0.0,
                         'rtt': 0.0,
-                        'SYN-Flag count': 0.0,
+                        'SYN': 0.0,
 
-                        'ACK-Flag count': 0.0,
-                        'RST-Flag count': 0.0,
-                        'PSH-Flag count': 0.0,
-                        'FIN-Flag count': 0.0,
-                        'URG-Flag count': 0.0,
-                        'CWR-Flag count': 0.0,
-                        'ECE-Flag count': 0.0,
+                        'Forward FIN flag count': 0.0,
+                        'Forward SYN flag count': 0.0,
+                        'Forward RST flag count': 0.0,
+                        'Forward ACK flag count': 0.0,
+                        'Forward 0x0014 flag count': 0.0,
+                        'Forward ACK-PSH flag count': 0.0,
+                        'Forward 0x003F flag count': 0.0,
+                        'Forward ACK-FIN-PSH flag count': 0.0,
+                        'Forward URG flag count': 0.0,
+                        'Forward FIN-ACK flag count': 0.0,
+
+                        'Backward FIN flag count': 0.0,
+                        'Backward RST flag count': 0.0,
+                        'Backward ACK flag count': 0.0,
+                        'Backward 0x0014 flag count': 0.0,
+                        'Backward ACK-PSH flag count': 0.0,
+                        'Backward 0x003F flag count': 0.0,
+                        'Backward SYN-ACK flag count': 0.0,
+                        'Backward ACK-FIN-PSH flag count': 0.0,
+                        'Backward URG flag count': 0.0,
+                        'Backward FIN-ACK flag count': 0.0,
+
                         'Label': 0,
 
                     }
+
+                fwdByteCountList.setdefault(forward, [])
+                bwdByteCountList.setdefault(backward, [])
+
+                fwdDelta.setdefault(forward, [])
+                bwdDelta.setdefault(backward, [])
+
+                fwdPayloadSizes.setdefault(forward, [])
+                bwdPayloadSizes.setdefault(backward, [])
 
                 if 'TCP' in packet:
                     tcpPacket = packet.tcp
@@ -169,7 +168,7 @@ def FlowExtractor(interface, capture, captureDuration, IP):
                     window = tcpPacket.window_size
                     timeDelta = tcpPacket.time_delta
 
-                    fwdDelta[flowID].append(float(timeDelta))
+                    fwdDelta[forward].append(float(timeDelta))
 
                     if hasattr(tcpPacket, 'payload'):
                         payloadSize = len(bytearray.fromhex(tcpPacket.payload.replace(':', '')))
@@ -183,105 +182,110 @@ def FlowExtractor(interface, capture, captureDuration, IP):
                                               'RTT-CHECK': False}
 
                         if flag == '0x0002':
-                            flows[flowID]['SYN-Flag count'] += 1
+                            flows[forward]['Forward SYN flag count'] += 1
 
-                            print('SYN flag belonging to', flowID)
+                            print('SYN flag belonging to', forward)
                             streams[tcpStream]['synTime'] = float(packet.sniff_timestamp)
                             streams[tcpStream]['SYN'] = True
                     # else:
                     if flag == '0x0012':
-                        print('SYN-ACK flag belonging to', flowID)
+                        print('SYN-ACK flag belonging to', backward)
                         streams[tcpStream]['syn-ackTime'] = float(packet.sniff_timestamp)
                         streams[tcpStream]['SYN-ACK'] = True
 
                     elapsedTime = packetTimestamp - streams[tcpStream]['PTS']
 
-                if flowID in flows:
-
-                    if flag == '0x008':
-                        flows[flowID]['PSH-Flag count'] += 1
-                    if flag == '0x0010':
-                        flows[flowID]['ACK-Flag count'] += 1
+                if forward in flows:
                     if flag == '0x0001':
-                        flows[flowID]['FIN-Flag count'] += 1
-                    if flag == '0x0040':
-                        flows[flowID]['ECE-Flag count'] += 1
-                    if flag == '0x0080':
-                        flows[flowID]['CWR-Flag count'] += 1
+                        flows[forward]['Forward FIN flag count'] += 1
+                    if flag == '0x0002':
+                        flows[forward]['Forward SYN flag count'] += 1
+                    if flag == '0x0004':
+                        flows[forward]['Forward RST flag count'] += 1
+                    if flag == '0x0010':
+                        flows[forward]['Forward ACK flag count'] += 1
+                    if flag == '0x0014':
+                        flows[forward]['Forward 0x0014 flag count'] += 1
+                    if flag == '0x0018':
+                        flows[forward]['Forward ACK-PSH flag count'] += 1
+                    if flag == '0x003F':
+                        flows[forward]['Forward 0x003F flag count'] += 1
+                    if flag == '0x0019':
+                        flows[forward]['Forward ACK-FIN-PSH flag count'] += 1
                     if flag == '0x0020':
-                        flows[flowID]['URG-Flag count'] += 1
-                    if flag == '0x0012':
-                        flows[flowID]['RST-Flag count'] += 1
+                        flows[forward]['Forward URG flag count'] += 1
+                    if flag == '0x0011':
+                        flows[forward]['Forward FIN-ACK flag count'] += 1
 
-                    flows[flowID]['fwd time delta'] = float(timeDelta)
+                    flows[forward]['fwd time delta'] = float(timeDelta)
 
-                    fwdDelta[flowID].append(float(timeDelta))
+                    fwdDelta[forward].append(float(timeDelta))
 
-                    flows[flowID]['Unique Ports'] = len(fwdUniquePorts[key])
+                    flows[forward]['Unique Ports'] = len(fwdUniquePorts[key])
 
-                    if not outgoing and os.path.getsize(logFilePath) != 0:
+                    if os.path.getsize(logFilePath) != 0:
                         # print("auth.log exists.")
 
                         result = subprocess.run(["grep", "-c", "Failed password", logFilePath], capture_output=True,
                                                 text=True)
                         count = int(result.stdout.strip())
                         # print(f"Authentication failure count: {count}")
-                        flows[flowID]['Auth Failures'] = count
+                        flows[forward]['Auth Failures'] = count
                     if 'UDP' not in packet:
 
-                        flows[flowID]['fwd flags'] = flag
-                        flows[flowID]['fwd payload size'] += payloadSize
-                        fwdPayloadSizes[flowID].append(payloadSize)
-                        flows[flowID]['fwd window size'] = window
+                        flows[forward]['fwd flags'] = flag
+                        flows[forward]['fwd payload size'] += payloadSize
+                        fwdPayloadSizes[forward].append(payloadSize)
+                        flows[forward]['fwd window size'] = window
 
                         if streams[tcpStream]['SYN'] == True and streams[tcpStream]['SYN-ACK'] == True and \
                                 streams[tcpStream]['RTT-CHECK'] == False:
                             RTT = streams[tcpStream]['syn-ackTime'] - streams[tcpStream]['synTime']
-                            flows[flowID]['rtt'] = RTT
+                            flows[forward]['rtt'] = RTT
                             streams[tcpStream]['RTT-CHECK'] = True
 
                     # get statistics for udp also
 
-                    if int(packet.length) < flows[flowID]['min fwd packet length']:
-                        flows[flowID]['min fwd packet length'] = int(packet.length)
-                    if int(packet.length) > flows[flowID]['max fwd packet length']:
-                        flows[flowID]['max fwd packet length'] = int(packet.length)
+                    if int(packet.length) < flows[forward]['min fwd packet length']:
+                        flows[forward]['min fwd packet length'] = int(packet.length)
+                    if int(packet.length) > flows[forward]['max fwd packet length']:
+                        flows[forward]['max fwd packet length'] = int(packet.length)
 
-                    flows[flowID]['fwd flowDuration'] += elapsedTime
-                    flows[flowID]['packetCount'] += 1
+                    flows[forward]['fwd flowDuration'] += elapsedTime
+                    flows[forward]['packetCount'] += 1
 
-                    flows[flowID]['fwd packetCount'] += 1
-                    flows[flowID]['total fwd byteCount'] += int(packet.length)
+                    flows[forward]['fwd packetCount'] += 1
+                    flows[forward]['total fwd byteCount'] += int(packet.length)
 
-                    totalFwdByteCount = flows[flowID]['total fwd byteCount']
-                    totalFwdDuration = flows[flowID]['fwd flowDuration']
+                    totalFwdByteCount = flows[forward]['total fwd byteCount']
+                    totalFwdDuration = flows[forward]['fwd flowDuration']
                     if (totalFwdDuration != 0):
-                        fwdByteCountList[flowID].append(int(packet.length))
-                        flows[flowID]['Fwd Packet Bytes/s'] = totalFwdByteCount / totalFwdDuration
+                        fwdByteCountList[forward].append(int(packet.length))
+                        flows[forward]['Fwd Packet Bytes/s'] = totalFwdByteCount / totalFwdDuration
 
-                    if (flows[flowID]['fwd flowDuration'] != 0):
-                        flows[flowID]['fwd meanByteSize'] = flows[flowID]['total fwd byteCount'] / flows[flowID][
+                    if (flows[forward]['fwd flowDuration'] != 0):
+                        flows[forward]['fwd meanByteSize'] = flows[forward]['total fwd byteCount'] / flows[forward][
                             'fwd packetCount']
-                        flows[flowID]['fwd Packet Flow Rate/s'] = flows[flowID]['fwd packetCount'] / flows[flowID][
+                        flows[forward]['fwd Packet Flow Rate/s'] = flows[forward]['fwd packetCount'] / flows[forward][
                             'fwd flowDuration']
 
-                    if (len(fwdByteCountList[flowID]) >= 2):
-                        flows[flowID]['fwd stDevByteSize'] = statistics.stdev(fwdByteCountList[flowID])
-                        flows[flowID]['fwd varianceByteSize'] = statistics.variance(fwdByteCountList[flowID])
+                    if (len(fwdByteCountList[forward]) >= 2):
+                        flows[forward]['fwd stDevByteSize'] = statistics.stdev(fwdByteCountList[forward])
+                        flows[forward]['fwd varianceByteSize'] = statistics.variance(fwdByteCountList[forward])
 
-                        if (len(fwdPayloadSizes[flowID]) >= 2):
-                            flows[flowID]['fwd variancePayloadSize'] = statistics.variance(fwdPayloadSizes[flowID])
+                        if (len(fwdPayloadSizes[forward]) >= 2):
+                            flows[forward]['fwd variancePayloadSize'] = statistics.variance(fwdPayloadSizes[forward])
 
-                        flows[flowID]['fwd stdDevDelta'] = np.std(fwdDelta[flowID])
-                        flows[flowID]['fwd varianceDelta'] = statistics.variance(fwdDelta[flowID])
-                        flows[flowID]['fwd meanDelta'] = statistics.mean(fwdDelta[flowID])
+                        flows[forward]['fwd stdDevDelta'] = np.std(fwdDelta[forward])
+                        flows[forward]['fwd varianceDelta'] = statistics.variance(fwdDelta[forward])
+                        flows[forward]['fwd meanDelta'] = statistics.mean(fwdDelta[forward])
 
                     elif 'UDP' in packet:
-                        flows[flowID]['Unique Ports'] = len(fwdUniquePorts[key])
+                        flows[forward]['Unique Ports'] = len(fwdUniquePorts[key])
 
                         UDPHeaderLength = 8
                         UDPPayloadSize = int(packet.udp.length) - UDPHeaderLength
-                        flows[flowID]['fwd payload size'] += UDPPayloadSize
+                        flows[forward]['fwd payload size'] += UDPPayloadSize
 
                 elif backward in flows:
 
@@ -290,6 +294,29 @@ def FlowExtractor(interface, capture, captureDuration, IP):
 
                     if 'UDP' not in packet:
                         flows[backward]['bwd flags'] = flag
+
+                        if flag == '0x0001':
+                            flows[backward]['Backward FIN flag count'] += 1
+                        if flag == '0x0002':
+                            flows[backward]['Backward SYN flag count'] += 1
+                        if flag == '0x0004':
+                            flows[backward]['Backward RST flag count'] += 1
+                        if flag == '0x0010':
+                            flows[backward]['Backward ACK flag count'] += 1
+                        if flag == '0x0018':
+                            flows[backward]['Backward ACK-PSH flag count'] += 1
+                        if flag == '0x003F':
+                            flows[backward]['Backward 0x003F flag count'] += 1
+                        if flag == '0x0012':
+                            flows[backward]['Backward SYN-ACK flag count'] += 1
+                        if flag == '0x0019':
+                            flows[backward]['Backward ACK-FIN-PSH flag count'] += 1
+                        if flag == '0x0014':
+                            flows[backward]['Backward 0x0014 flag count'] += 1
+                        if flag == '0x0020':
+                            flows[backward]['Backward URG flag count'] += 1
+                        if flag == '0x0011':
+                            flows[backward]['Backward FIN-ACK flag count'] += 1
 
                         flows[backward]['bwd window size'] = window
                         flows[backward]['bwd payload size'] += payloadSize
@@ -351,6 +378,12 @@ def FlowExtractor(interface, capture, captureDuration, IP):
 
             flowDataFrame = pd.DataFrame.from_dict(flows, orient='index')
 
+            try:
+                check = flowDataFrame[['forward', 'Auth Failures', 'Unique Ports', 'Origin']]
+            except(KeyError):
+                print("Missing columns")
+                FlowExtractor('eth0', capture, captureDuration, IP)
+
             fileExists = os.path.exists('FlowData.csv')
 
             flowDataFrame.to_csv('FlowData.csv', mode='a', header=not fileExists, index=False)
@@ -370,7 +403,7 @@ def FlowUpdater(flowDataFrame, interface, capture, captureDuration, IP):
     for x, row in flowDataFrame.iterrows():
         try:
             Flow.objects.create(
-                flowID=row['flowID'],
+                forward=row['forward'],
                 srcIP=row['srcIP'],
                 dstPort=row['dstPort'],
                 fwdFlags=row['fwd flags'],
@@ -401,13 +434,27 @@ def FlowUpdater(flowDataFrame, interface, capture, captureDuration, IP):
                 fwdFlowPacketRate=row['fwd Packet Flow Rate/s'],
                 bwdFlowPacketRate=row['bwd Packet Flow Rate/s'],
 
-                synFlag=row['SYN-Flag count'],
-                ackFlag=row['ACK-Flag count'],
-                rstFlag=row['RST-Flag count'],
-                urgFlag=row['URG-Flag count'],
-                pshFlag=row['PSH-Flag count'],
-                eceFlag=row['ECE-Flag count'],
-                cwrFlag=row['CWR-Flag count'],
+                ForwardFinFlag=row['Forward FIN flag count'],
+                ForwardSynFlag=row['Forward SYN flag count'],
+                ForwardRstFlag=row['Forward RST flag count'],
+                ForwardAckFlag=row['Forward ACK flag count'],
+                Forward0x0014Flag=row['Forward 0x0014 flag count'],
+                ForwardAckPshFlag=row['Forward ACK-PSH flag count'],
+                Forward0x003FFlag=row['Forward 0x003F flag count'],
+                ForwardAckFinPshFlag=row['Forward ACK-FIN-PSH flag count'],
+                ForwardUrgFlag=row['Forward URG flag count'],
+                ForwardFinAckFlag=row['Forward FIN-ACK flag count'],
+
+                BackwardFinFlag=row['Backward FIN flag count'],
+                BackwardRstFlag=row['Backward RST flag count'],
+                BackwardAckFlag=row['Backward ACK flag count'],
+                Backward0x0014Flag=row['Backward 0x0014 flag count'],
+                BackwardAckPshFlag=row['Backward ACK-PSH flag count'],
+                Backward0x003FFlag=row['Backward 0x003F flag count'],
+                BackwardSynAckFlag=row['Backward SYN-ACK flag count'],
+                BackwardAckFinPshFlag=row['Backward ACK-FIN-PSH flag count'],
+                BackwardUrgFlag=row['Backward URG flag count'],
+                BackwardFinAckFlag=row['Backward FIN-ACK flag count'],
 
                 fwdUniquePorts=row['Unique Ports'],
                 authFailures=row['Auth Failures'],
@@ -430,6 +477,7 @@ def FlowUpdater(flowDataFrame, interface, capture, captureDuration, IP):
                 Label=row['Label'])
 
         except (IntegrityError):
+            print('duplicated flow:: ', row['forward'])
             print("Duplicate flow, skipping")
             continue
 
@@ -441,23 +489,18 @@ def FlowUpdater(flowDataFrame, interface, capture, captureDuration, IP):
     FlowExtractor(interface, capture, captureDuration, IP)
     return 0
 
+
 def main(IP):
     captureDuration = 30
-    #Flow.objects.all().delete()
 
     print("Flow extractor is running.")
     command = "grep 'client_ip=' /var/log/xrdp.log | tail -n1 | awk -F'client_ip=| client_port=' '{print $2}' | sed 's/::ffff://' | cut -d' ' -f1"
     ipAddress = subprocess.check_output(command, shell=True, text=True).strip()
 
-    #XRDPCIDR = "78.17.0.0/24"
-    DHCP = "255.255.255.255"
     if IP:
         filter = f"(src host {IP} or dst host {IP})"
         capture = pyshark.LiveCapture(interface='eth0', bpf_filter=filter)
     else:
-        #filter = f"(not net {XRDPCIDR} and not dst host {DHCP})"
-        #filter = f"(not dst host {DHCP})"
-        #filter = f"not (net {ipAddress} and dst port 53579 or src port 53579)"
         filter = f"not net {ipAddress}"
         capture = pyshark.LiveCapture(interface='eth0', bpf_filter=filter)
 

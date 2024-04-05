@@ -4,6 +4,7 @@ import Button from 'react-bootstrap/Button';
 import NavbarComponent from './NavbarComponent';
 import Container from 'react-bootstrap/Container';
 import Dropdown from 'react-bootstrap/Dropdown';
+import { Link } from 'react-router-dom'
 
 function Sniffer() {
   const [FlowID,setFlowID] = useState('');
@@ -12,6 +13,7 @@ function Sniffer() {
   const [categorizedFlows, setCategorizedFlows] = useState({});
   const [selectedSrcIP, setSelectedSrcIP] = useState();
   const [Msg, setMsg] = useState();
+  const [HostIP, setHostIP] = useState();
   const [AnomalyStatus, setAnomalyStatus] = useState('No Anomalies Detected');
 
   useEffect(() => {
@@ -25,17 +27,29 @@ function Sniffer() {
 
 	    setAnomalousFlow(data)
 	    }
-	
-	FetchAnomalousFlow();
-  }, []);
+
+	    FetchAnomalousFlow();
+
+	    async function FetchHostIP() {
+            const response = await fetch('https://danielmackey.ie/api/FetchHostIP/', {
+            method: 'GET',
+            credentials: 'include',
+  		  })
+            const data = await response.json();
+
+	        setHostIP(data)
+	    }
+
+        FetchHostIP();
+  },[]);
   
   useEffect(() => {
         const categorizeFlowsBySourceIP = (flows) => {
         
             const categorized = {};
-            
+
             flows.forEach(flow => {
-                if (flow.srcIP != "149.102.157.168" && flow.Label !="0") {
+                if (flow.srcIP != HostIP && flow.Label !="0") {
                     if (!categorized[flow.srcIP]) {
                    
                         categorized[flow.srcIP] = [];
@@ -69,7 +83,6 @@ function Sniffer() {
        .find((cookie) => cookie.trim().startsWith('csrftoken='));
 
    if (!csrfCookie) {
-     //throw new Error('CSRF token not found in cookies.');
      return 0
   }
 
@@ -128,6 +141,7 @@ function Sniffer() {
 
   		const JSONFlow = {
   			IPAddress: srcIP,
+  			PublicIP: HostIP
   		};
 
   		   const response = await fetch(`https://danielmackey.ie/api/banIP/`, { method: 'POST',
@@ -199,7 +213,8 @@ function Sniffer() {
         <div>
             {Object.keys(categorizedFlows).map((srcIP, index) => (
                 <div key={index}>
-                    <h5>Source IP: {srcIP}</h5>
+                    <h5>Source IP: {srcIP}<a href={`https://abuseipdb.com/check/${srcIP}`}> Info</a></h5>
+
                  <div className="d-flex align-items-center gap-1">
                     <Button onClick={() => showFlowByIP(srcIP)}>
                     {selectedSrcIP == srcIP ? 'Hide flows' : 'Display Flows'}</Button>
@@ -220,7 +235,7 @@ function Sniffer() {
                         <ul>
                             {categorizedFlows[srcIP].map((flow, flowIndex) => (
                                 <li key={flowIndex}>
-                                    Flow ID: {flow.flowID} - Label: {flow.Label}
+                                    Flow ID: {flow.forward} - Label: {flow.Label}
                                 </li>
                             ))}
                         </ul>

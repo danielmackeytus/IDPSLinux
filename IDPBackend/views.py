@@ -7,6 +7,7 @@ from rest_framework.authentication import SessionAuthentication
 from rest_framework import status
 from django.db.models import Avg, Count, Sum, Max, Min
 import pandas as pd
+import requests
 
 from IDPBackend.models import Flow
 from IDPBackend.serializers import FlowSerializer, FlowStatisticsSerializer, checkIfExists
@@ -26,7 +27,7 @@ from IDPBackend.models import TrafficStatus
 from IDPBackend.models import TrainingStatus
 from IDPBackend.FlowExtractor import main
 from IDPBackend.MachineLearningTraining import MachineLearningTraining
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from .taskmanager import Task
 import iptc
 import os
@@ -43,6 +44,7 @@ def ResetFlowHistory(request):
         except FileNotFoundError:
             return JsonResponse({'message': 'No flow exists'}, status=404);
 
+
 @api_view(['DELETE'])
 @permission_classes([IsAuthenticated])
 def DeleteAllAnomalies(request):
@@ -50,11 +52,14 @@ def DeleteAllAnomalies(request):
         Flow.objects.all().delete()
         return JsonResponse({'message': 'Anomaly History Reset'}, status=200);
 
+
 @api_view(['GET'])
 def FetchFlowStatistics(request):
+    response = requests.get('https://httpbin.org/ip')
+    HostIP = response.json()
+
     if request.method == 'GET':
-        # LabelSumAgg = Flow.objects.aggregate(sum_label=Sum('Label',default=0))
-        NewFlow = Flow.objects.exclude(srcIP='149.102.157.168')
+        NewFlow = Flow.objects.exclude(srcIP=HostIP.get('origin'))
         CountryFreqAgg = NewFlow.values('Origin').annotate(count=Count('id'))
         LabelFreqAgg = NewFlow.values('Label').annotate(count=Count('id'))
         srcIPs = NewFlow.values('srcIP').annotate(count=Count('id'))
@@ -83,21 +88,21 @@ def IgnoreIP(request):
         return JsonResponse({'status': 'IP Ignored'})
 
 
-class CsrfExemptSessionAuthentication(SessionAuthentication):
-    def enforce_csrf(self, request):
-        return 0
+# class CsrfExemptSessionAuthentication(SessionAuthentication):
+#    def enforce_csrf(self, request):
+#        return 0
 
 
-@api_view(['GET', 'POST'])
-@authentication_classes([CsrfExemptSessionAuthentication])
-def VulnerableView(request):
-    if not request.user.is_authenticated:
-        return Response({"status": "you need authorization"}, status=401)
-
-    if request.method == 'GET':
-        return Response({"status": "GET method executed."})
-    elif request.method == 'POST':
-        return Response({"status": "POST method executed."})
+# @api_view(['GET', 'POST'])
+# @authentication_classes([CsrfExemptSessionAuthentication])
+# def VulnerableView(request):
+#    if not request.user.is_authenticated:
+#        return Response({"status": "you need authorization"}, status=401)#
+#
+#   if request.method == 'GET':
+#        return Response({"status": "GET method executed."})
+#    elif request.method == 'POST':
+#        return Response({"status": "POST method executed."})
 
 
 @api_view(['POST'])
@@ -106,7 +111,6 @@ def MoveToTraining(request):
     print('request', request)
     if request.method == 'POST':
         try:
-            #file = request.data.get('FlowIdentifier')
             label = request.data.get('ClassLabel')
             print('label:', label)
 
@@ -115,11 +119,11 @@ def MoveToTraining(request):
 
             path = ('TrainingData/' + label + '.csv')
             if os.path.exists(path):
-                flowData.drop(['Origin', 'flowID', 'srcIP'], axis=1).to_csv(path, mode='a', header=False, index=False)
+                flowData.drop(['Origin', 'forward', 'srcIP'], axis=1).to_csv(path, mode='a', header=False, index=False)
                 os.remove('FlowData.csv')
 
             else:
-                flowData.drop(['Origin', 'flowID', 'srcIP'], axis=1).to_csv('FlowData.csv', index=False)
+                flowData.drop(['Origin', 'forward', 'srcIP'], axis=1).to_csv('FlowData.csv', index=False)
                 os.rename('FlowData.csv', path)
 
             return JsonResponse({'message': 'Flow moved'}, status=200);
@@ -130,6 +134,21 @@ def MoveToTraining(request):
 def startTrainerThread(Layers, Epochs):
     thread = Thread(target=MachineLearningTraining, args=(Layers, Epochs))
     thread.start()
+
+
+@api_view(['GET','POST'])
+def FetchHostIP(request):
+    if request.method == 'GET' or request.method == 'POST':
+        try:
+            response = requests.get('https://httpbin.org/ip')
+            if response.status_code == 200:
+                ip_data = response.json()
+                public_ip = ip_data.get('origin')
+                return Response(public_ip)
+            else:
+                print(f"Failed to retrieve IP (Status code: {response.status_code})")
+        except Exception as e:
+            print(f"Error: {e}")
 
 
 @api_view(['GET'])
@@ -174,13 +193,13 @@ def AbuseIPDB(request):
 
                 querystring = {
                     'ipAddress': IP,
-                    'maxAgeInDays': '7',
+                    'maxAgeInDays': '14',
                     'verbose': 'no'
                 }
 
                 headers = {
                     'Accept': 'application/json',
-                    'Key': 'e8b8ecbf17807437c193297b178d91f9a31906424f2bb41b44e856cd67044e94cc9e361a5cbb1257'
+                    'Key': 'c7318b06712c621622ea876d243eb422be34a1eceea733571eb0d7b92cae1fd0e34cf9499430ad3b'
                 }
 
                 response = requests.request(method='GET', url=url, headers=headers, params=querystring)
@@ -190,84 +209,92 @@ def AbuseIPDB(request):
 
                 allCategories = []
 
-                if decodedResponse['data']['abuseConfidenceScore'] >= 60:
-                    if len(decodedResponse['data']['reports']) > 10:
+                if (decodedResponse['data']['abuseConfidenceScore'] > 0 and
+                        len(decodedResponse['data']['reports']) > 10):
+                    print('ip: ' + IP + ' is abusive.')
+                    reports = decodedResponse['data']['reports'][:25]
+                    for report in reports:
+                        allCategories.extend(report['categories'])
 
-                        reports = decodedResponse['data']['reports'][:25]
-                        for report in reports:
-                            allCategories.extend(report['categories'])
+                    mostCommonCategory = Counter(allCategories).most_common(1)[0][0]
+                    Label = ""
 
-                        mostCommonCategory = Counter(allCategories).most_common(1)[0][0]
-                        Label = ""
+                    categoryString = categoryMap[mostCommonCategory]
+                    Label = Label + categoryString
+                    print(Label)
 
-                        categoryString = categoryMap[mostCommonCategory]
-                        Label = Label + categoryString
-                        print(Label)
+                    path = ('TrainingData/' + "AbuseIPDB - " + Label + '.csv')
+                    extraPath = 'Extra/' + Label + '.csv'
 
-                        path = ('TrainingData/' + "AbuseIPDB - " + Label + '.csv')
-                        if os.path.exists(path):
-                            if Label != "Port Scan":
-                                dataframe.at[index, 'Label'] = "AbuseIPDB - Suspicious"
-                                dataframe.loc[[index]].drop(['Origin', 'flowID', 'srcIP'], axis=1).to_csv(path, mode='a',
-                                                                                                              header=False,
-                                                                                                          index=False)
-                            else:
-                                dataframe.at[index, 'Label'] = "AbuseIPDB - " + Label
-                                dataframe.loc[[index]].drop(['Origin', 'flowID', 'srcIP'], axis=1).to_csv(path,
-                                                                                                          mode='a',
-                                                                                                          header=False,
-                                                                                                          index=False)
+                    if os.path.exists(extraPath) or os.path.exists(path):
+
+                        if Label != "Port Scan":
+
+                            dataframe.at[index, 'Label'] = "AbuseIPDB - " + Label
+                            dataframe.loc[[index]].drop(['Origin', 'forward', 'srcIP'], axis=1).to_csv(
+                                extraPath, mode='a', header=False, index=False)
+
+                        elif os.path.exists(path):
+                            dataframe.at[index, 'Label'] = "AbuseIPDB - " + Label
+                            dataframe.loc[[index]].drop(['Origin', 'forward', 'srcIP'], axis=1).to_csv(path,
+                                                                                                       mode='a',
+                                                                                                       index=False,
+                                                                                                       header=False)
+                    else:
+                        if Label != "Port Scan":
+                            dataframe.at[index, 'Label'] = "AbuseIPDB - " + Label
+                            dataframe.loc[[index]].drop(['Origin', 'forward', 'srcIP'], axis=1).to_csv(
+                                extraPath, index=False)
                         else:
-                            if Label != "Port Scan":
-                                dataframe.at[index, 'Label'] = "AbuseIPDB - " + "Suspicious"
-                                dataframe.loc[[index]].drop(['Origin', 'flowID', 'srcIP'], axis=1).to_csv(path, index=False)
-                            else:
-                                    dataframe.at[index, 'Label'] = "AbuseIPDB - " + Label
-                                    dataframe.loc[[index]].drop(['Origin', 'flowID', 'srcIP'], axis=1).to_csv(path,
-                                                                                                              mode='a',
-                                                                                                              header=False,
-                                                                                                              index=False)
+                            dataframe.at[index, 'Label'] = "AbuseIPDB - " + Label
+                            dataframe.loc[[index]].drop(['Origin', 'forward', 'srcIP'], axis=1).to_csv(path,
+                                                                                                       index=False)
 
-                else:
+                elif (decodedResponse['data']['abuseConfidenceScore'] == 0 or
+                      len(decodedResponse['data']['reports']) < 10):
+                    print('ip: ' + IP + ' is NOT abusive.')
                     dataframe.at[index, 'Label'] = "Normal"
-                    print('IP is safe...')
 
                     path = ('TrainingData/' + "Normal" + '.csv')
 
                     if os.path.exists(path):
-                        dataframe.loc[[index]].drop(['Origin', 'flowID', 'srcIP'], axis=1).to_csv(path, mode='a',
-                                                                                                  header=False,
-                                                                                                  index=False)
-                        # os.remove('FlowData.csv')
+                        dataframe.loc[[index]].drop(['Origin', 'forward', 'srcIP'], axis=1).to_csv(path, mode='a',
+                                                                                                   header=False,
+                                                                                                   index=False)
+
 
                     else:
-                        dataframe.loc[[index]].drop(['Origin', 'flowID', 'srcIP'], axis=1).to_csv(path, index=False)
-                        # os.rename('FlowData.csv', path)
-            except(KeyError):
+                        dataframe.loc[[index]].drop(['Origin', 'forward', 'srcIP'], axis=1).to_csv(path, index=False)
+            except KeyError:
                 continue
+            os.remove('FlowData.csv')
         return JsonResponse({'message': '...'}, status=200)
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def StartTraining(request):
-    if not (os.listdir('TrainingData')):
-        TrainingStatus.objects.create(status='No training files found.', previousTimestamp='unchanged');
-        return JsonResponse({'status': 'No training files found.'});
+    try:
+        if not (os.listdir('TrainingData')):
+            TrainingStatus.objects.create(status='No training files found.', previousTimestamp='unchanged');
+            return JsonResponse({'status': 'No training files found.'});
 
-    Layers = request.data.get('Layers')
-    Epochs = request.data.get('Epochs')
-    startTrainerThread(Layers, Epochs)
+        Layers = request.data.get('Layers')
+        Epochs = request.data.get('Epochs')
+        startTrainerThread(Layers, Epochs)
 
-    TrainingStatus.objects.create(status='Training started.', previousTimestamp='today');
-
+    except(ValueError):
+        return JsonResponse({'status': 'Invalid inputs.'});
     return JsonResponse({'status': 'Training started.'});
 
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def BanIP(request):
-    if request.method == "POST" and request.data.get('IPAddress') != "149.102.157.168":
+
+    print(request.data.get('PublicIP'))
+
+    if request.method == "POST" and request.data.get('IPAddress') != request.data.get('PublicIP'):
 
         table = iptc.Table(iptc.Table.FILTER)
         chain = iptc.Chain(table, "INPUT")
@@ -313,7 +340,6 @@ def UnbanIP(request):
 @permission_classes([IsAuthenticated])
 def fetchAnomalousFlow(request):
     if request.method == 'GET':
-        # queryset = AnomalousFlows = Flow.objects.all()
         queryset = Flow.objects.all()
         serializer = FlowSerializer(queryset, many=True)
     return Response(serializer.data)
@@ -333,9 +359,6 @@ def fetchAnomalousFlow(request):
 
 @api_view(['POST'])
 def UserLogin(request):
-    # permissioncats = (permissions.AllowAny,)
-    # authenticationcats = (SessionAuthentication,)
-
     if request.method == 'POST':
         serializer = UserLoginSerializer(data=request.data)
         if serializer.is_valid():
@@ -359,9 +382,6 @@ def UserLogout(request):
 @permission_classes([IsAuthenticated])
 @api_view(['GET'])
 def UserView(request):
-    # authenticationcats = (permissions.IsAuthenticated,)
-    # permissioncats = (permissions.AllowAny,)
-
     if (request.method == 'GET'):
 
         if request.user.is_authenticated:
@@ -376,17 +396,17 @@ def UserView(request):
 @permission_classes([IsAuthenticated])
 def TrainingInfo(request):
     if (request.method == 'GET'):
-        queryset = TrainingStatus.objects.all()
-        serializer = TrainingStatusSerializer(queryset, many=True)
-        return Response(serializer.data);
+        query = TrainingStatus.objects.last().previousTimestamp
+        serializer = TrainingStatusSerializer({'previousTimestamp': query})
+        return Response(serializer.data)
 
     elif (request.method == 'POST'):
         serializer = TrainingStatusSerializer(data=request.data)
 
         if serializer.is_valid():
-            TrainingStatus.objects.all().delete()
+            TrainingStatus.objects.create(previousTimestamp=request.data.get('previousTimestamp'))
             serializer.save()
-            return JsonResponse({"database": "instance created"});
+        return JsonResponse({"previousTimestamp": request.data.get('previousTimestamp')});
 
 
 def startSnifferThread(IP):
@@ -398,17 +418,16 @@ def startSnifferThread(IP):
 @permission_classes([IsAuthenticated])
 def startSnifferCapture(request, IP=None):
     if request.method == 'POST':
-        ip = request.GET.get('IP', '')
-        print('ip: ', ip)
-        # Flow.objects.all().delete()
-        # FlowStatistics.objects.all().delete()
+
         startSnifferThread(IP)
 
         Task['sniffer'] = 'on'
         TrafficStatus.objects.create(status='scanning in progress')
+
         if (os.path.exists('model.tf')):
-            return Response({"status": 'Sniffer started on a new thread.'})
+            return Response({"status": 'Sniffer started.'})
         else:
+            TrafficStatus.objects.create(status='scanning in progress, predictions disabled.')
             return Response({"status": 'No model found, sniffer started but will not make predictions.'})
 
 
@@ -421,7 +440,7 @@ def stopSnifferCapture(request):
 
     Task['sniffer'] = 'off'
 
-    return Response({'status': 'Sniffer thread will terminate shortly.'})
+    return Response({'status': 'Sniffer will terminate shortly.'})
 
 
 @api_view(['GET'])

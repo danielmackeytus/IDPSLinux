@@ -35,7 +35,6 @@ function Sniffer() {
        .find((cookie) => cookie.trim().startsWith('csrftoken='));
 
    if (!csrfCookie) {
-     //throw new Error('CSRF token not found in cookies.');
      return 0
   }
 
@@ -135,7 +134,6 @@ function Sniffer() {
   const MoveToTraining = async () => {
   	try {
   		const JSONFlow = {
-  			//FlowIdentifier: FlowID,
   			ClassLabel: Label,
   		};
   		const response = await fetch(`https://danielmackey.ie/api/MoveToTraining/`, {
@@ -177,12 +175,14 @@ function Sniffer() {
 <Container fluid>
 
 	<h4 class="mb-3">{Msg}</h4>
-	<div class="mb-2 d-flex align-items-center gap-1">
+	<div class="mb-2 d-flex gap-1">
 
 			<button onClick={StartCaptureButton}
 			className="btn btn-primary">Run Sniffer</button>
+
 			<button onClick={StopCaptureButton}
 			className="btn btn-danger">Stop Sniffer</button>
+
 			<button onClick={ResetFlowHistory}
 			className="btn btn-light">Reset Flow History</button>
 			</div>
@@ -196,14 +196,6 @@ function Sniffer() {
                     />
                     </div>
 
-            <div class="mt-1 Label">
-               <input required
-                  type="text"
-                  value={Label}
-                  onChange={alterLabel}
-                  placeholder="Class name"
-                  />
-            </div>
 
 
         <div className="mt-5 text-center">
@@ -214,7 +206,7 @@ function Sniffer() {
                  className="mt-2 card-img-top" alt="AbuseIPDB Logo" />
 
                 <Card.Body className="mt-2 mb-2">
-                    <p class="card-text">This button gets the first 25 reports within the past week from <u><i>AbuseIPDB.com</i></u> based on each flow source IP.</p>
+                    <p class="card-text">This button gets the first 25 reports within the past 2 weeks from <u><i>AbuseIPDB.com</i></u> based on each flow source IP.</p>
                     <p class="card-text">It then calculates the average category assigned by global users.</p>
                     <p class="card-text">This intelligence assigns each flow said category.</p>
                     <p class="card-text">Can be used to split normal and abnormal.</p>
@@ -231,7 +223,15 @@ function Sniffer() {
                  className="mt-2 card-img-top" alt="Wrench Logo" />
 
                 <p class="card-text">This button can be used if you are orchestrating your own attacks on the IDPS.</p>
-                <p class="card-text">Requires you enter your own flow name above.</p>
+                <p class="card-text">Requires you enter your own flow name below.</p>
+               <div class="mb-1 Label">
+                    <input required
+                          type="text"
+                          value={Label}
+                          onChange={alterLabel}
+                          placeholder="Class name"
+                     />
+                </div>
                     <button onClick={MoveToTraining}
                     className="btn btn-light">Custom Categorization</button>
             </div>

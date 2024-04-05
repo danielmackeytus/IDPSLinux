@@ -9,13 +9,34 @@ function Dashboard() {
    const [FlowStatistics, setFlowStatistics] = useState({});
    const [PieChartFA, setPieChartFA] = useState([{id:0,value:0,label:""}]);
    const [PieChartFO, setPieChartFO] = useState([{id:1,value:0,label:""}]);
+   const [HostIP, setHostIP] = useState()
+
+    function getCSRFToken() {
+
+     const cookieString = document.cookie;
+     const csrfCookie = cookieString
+       .split(';')
+       .find((cookie) => cookie.trim().startsWith('csrftoken='));
+
+   if (!csrfCookie) {
+     return 0
+  }
+
+    return csrfCookie.split('=')[1];
+}
+
+  const csrftoken = getCSRFToken();
 
    useEffect(() => {
 
 	async function FetchFlowStatistics() {
+
             const response = await fetch('https://danielmackey.ie/api/FetchFlowStatistics/', {
             credentials: 'include',
-            });
+            method: 'GET',
+            }
+
+            );
 
             const flowStatistics = await response.json();
 
@@ -28,8 +49,9 @@ function Dashboard() {
                     label: item.Label,
               }));
 
-
         setPieChartFA(updatedData);
+
+
       }
 
             if (flowStatistics.FrequentOrigin) {
@@ -48,7 +70,7 @@ function Dashboard() {
 	    }
 	
 	FetchFlowStatistics();
-  }, []);
+  }, [HostIP]);
 
 
 return (
@@ -56,7 +78,7 @@ return (
   <NavbarComponent/>
   <Container fluid>
 
-  <h3 className="mt-5"><p>Top 5 most frequent attacks</p></h3>
+  <h3 className="mt-5"><p>Attack Type Frequencies</p></h3>
 
     <PieChart
       series={[
@@ -83,7 +105,7 @@ return (
   ): null))
   }
 
-  <h3 className="mt-5"><p>Top 5 most frequent origins</p></h3>
+  <h3 className="mt-5"><p>Attack Countries of Origin</p></h3>
 
     <PieChart
       series={[
@@ -99,7 +121,7 @@ return (
  {FlowStatistics.FrequentOrigin && FlowStatistics.FrequentOrigin.map((item,index) => (
  item.Origin != 'Nowhere' ? (
  <ul>
-     <li key={index}>Type: {item.Origin} - Count: {item.count}</li>
+     <li key={index}>Country: {item.Origin} - Count: {item.count}</li>
   </ul>
 
   ): null))

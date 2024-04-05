@@ -27,11 +27,10 @@ class TFMetrics(models.Model):
         return f"{self.accuracy}"
 
 class TrainingStatus(models.Model):
-    status = models.CharField(max_length=50)
     previousTimestamp = models.CharField(max_length=50)
 
     def __str__(self):
-        return f"{self.status}"
+        return f"{self.previousTimestamp}"
 
 
 class FlowStatistics(models.Model):
@@ -44,7 +43,7 @@ class FlowStatistics(models.Model):
 
 
 class Flow(models.Model):
-    flowID = models.CharField(max_length=50, unique=True)
+    forward = models.CharField(max_length=50, unique=True)
     srcIP = models.CharField(max_length=20)
     dstPort = models.CharField(max_length=50)
 
@@ -69,14 +68,27 @@ class Flow(models.Model):
     fwdStdDevDelta = models.CharField(max_length=25)
     bwdStdDevDelta = models.CharField(max_length=25)
 
-    synFlag = models.CharField(max_length=25)
-    ackFlag = models.CharField(max_length=25)
-    rstFlag = models.CharField(max_length=25)
-    pshFlag = models.CharField(max_length=25)
-    finFlag = models.CharField(max_length=25)
-    urgFlag = models.CharField(max_length=25)
-    cwrFlag = models.CharField(max_length=25)
-    eceFlag = models.CharField(max_length=25)
+    ForwardFinFlag = models.CharField(max_length=25)
+    ForwardSynFlag = models.CharField(max_length=25)
+    ForwardRstFlag = models.CharField(max_length=25)
+    ForwardAckFlag = models.CharField(max_length=25)
+    Forward0x0014Flag = models.CharField(max_length=25)
+    ForwardAckPshFlag = models.CharField(max_length=25)
+    Forward0x003FFlag = models.CharField(max_length=25)
+    ForwardAckFinPshFlag = models.CharField(max_length=25)
+    ForwardUrgFlag = models.CharField(max_length=25)
+    ForwardFinAckFlag = models.CharField(max_length=25)
+
+    BackwardFinFlag = models.CharField(max_length=25)
+    BackwardRstFlag = models.CharField(max_length=25)
+    BackwardAckFlag = models.CharField(max_length=25)
+    Backward0x0014Flag = models.CharField(max_length=25)
+    BackwardAckPshFlag = models.CharField(max_length=25)
+    Backward0x003FFlag = models.CharField(max_length=25)
+    BackwardSynAckFlag = models.CharField(max_length=25)
+    BackwardAckFinPshFlag = models.CharField(max_length=25)
+    BackwardUrgFlag = models.CharField(max_length=25)
+    BackwardFinAckFlag = models.CharField(max_length=25)
 
     FwdPacketByteRate = models.CharField(max_length=25)
     BwdPacketByteRate = models.CharField(max_length=25)

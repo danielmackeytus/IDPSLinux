@@ -1,0 +1,12 @@
+This project was built on Ubuntu 22.04. The network interface used was eth0.
+
+To install all packages and dependencies, enter via anaconda prompt:
+> type 'source activate'
+> conda install --file requirements.txt
+OR > pip install -r requirements.txt
+
+To run django, navigate to root project folder (this one). enter: sudo /home/[linux username]/anaconda3/bin/python manage.py runsslserver 0.0.0.0:8000
+
+To run react, navigate to dashboard folder and open terminal. enter: HTTPS=true npm start
+
+login to site with email: daniel@hotmail.com - pass: 3213

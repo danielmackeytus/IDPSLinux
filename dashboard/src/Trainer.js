@@ -29,9 +29,8 @@ function Trainer() {
 		
                 if (response.ok) {
                    const data = await response.json();
-                   
-                   //setStatus(data.status);
-                   setTimestamp(data[0].previousTimestamp);
+
+                   setTimestamp(data.previousTimestamp);
 		   
 		   
 		} else {
@@ -49,7 +48,6 @@ function Trainer() {
                    const data = await response.json();
 
                    setAccuracy(data.accuracy);
-                   console.log('test',data)
                    setAccuracy_loss(data.loss);
                    setValidationAccuracy(data.val_accuracy);
                    setValidationLoss(data.val_loss);
@@ -72,7 +70,6 @@ function Trainer() {
        .find((cookie) => cookie.trim().startsWith('csrftoken='));
 
      if (!csrfCookie) {
-       //throw new Error('CSRF token not found in cookies.');
        return 0
   }
 
@@ -86,7 +83,7 @@ function Trainer() {
 
 	const hyperparameters = {
 	   Layers:Layer,
-	   Epochs:epochs
+	   Epochs:epochs,
 	}
 
 
@@ -105,10 +102,10 @@ function Trainer() {
         if (data.status != 'No training files found.') {
            setStatus('Training started.');
 	   const currDateTime = new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString();
-                   
+
 	const data = {
-           //status: "Previous training session:",
            previousTimestamp: currDateTime,
+           status: Status,
         };
                    
 	const response = await fetch(`https://danielmackey.ie/api/TrainingInfo/`,
@@ -121,9 +118,9 @@ function Trainer() {
            'X-CSRFToken': csrftoken,
                  },
 	});
-		
-	//setStatus(data.status);
+
 	setTimestamp(data.previousTimestamp);
+	//setStatus(data.Status);
 	} else {
 	   setStatus('No training files found.')
 	   }
@@ -161,7 +158,7 @@ function Trainer() {
 			setStatus("No connection to backend.")
 		}
     } catch(error) {
-        console.log('what')
+        console.log('an error occurred.')
     }
     }
 
@@ -202,18 +199,20 @@ function Trainer() {
       />
       <Button onClick={handleClick} variant="primary" className="mt-4">Add Layer</Button>
       </Col>
+
       {Layer.map((layer, index) => (
-  <Row key={index} className="align-items-end">
-    <Col md="3" className="mt-4">
-      <Form.Label>Activation Layer</Form.Label>
-      <Form.Control
-        type="text"
-        name="activation"
-        value={layer.activation}
-        onChange={(entered) => handleLayerChange(entered, index)}
-        placeholder="Activation Layer"
+        <Row key={index} className="align-items-end">
+        <Col md="3" className="mt-4">
+        <Form.Label>Activation Function</Form.Label>
+        <Form.Control
+            type="text"
+            name="activation"
+            value={layer.activation}
+            onChange={(entered) => handleLayerChange(entered, index)}
+            placeholder="Activation Function"
       />
     </Col>
+
     <Col md="2" className="mt-4">
       <Form.Label>Nodes</Form.Label>
       <Form.Control
